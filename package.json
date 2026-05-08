@@ -1,0 +1,28 @@
+{
+  "name": "prescription-system",
+  "version": "1.0.0",
+  "description": "Sistema de gestão de prescrições médicas",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [],
+  "author": "Desenvolvedor",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "firebase": "^12.12.1",
+    "lucide-react": "^1.14.0",
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^4.2.4"
+  }
+}

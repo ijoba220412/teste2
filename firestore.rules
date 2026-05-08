@@ -1,0 +1,11 @@
+```json
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Permita acesso total (read, write: if true)
+    match /* {document=**} */ {
+      allow read, write;
+    }
+  }
+}
+```
