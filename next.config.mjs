@@ -3,7 +3,6 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react'],
   },
-  // Garantir que o output seja otimizado
   reactStrictMode: true,
 }
 
