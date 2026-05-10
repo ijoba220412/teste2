@@ -5,32 +5,63 @@ node_modules/
 # Environment variables
 .env
 .env.local
-.env.*
+*.env.*
 
-# Editor/IDE files
+# IDE specific
 .vscode/
 .idea/
-*.swp
-*.swo
-*.tmp
 
 # Logs
 *.log
 
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
 # Build artifacts
 dist/
 build/
-target/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
 
-# Python
+# Python specific
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-env/
-venv/
+*.so
+.Python
+*.egg-info/
+.eggs/
 .venv/
-.ENV
-.ENV.*
+venv/
+.env/
+.coverage
+htmlcov/
+.coveragerc
+.pytest_cache/
+.mypy_cache/
+
+# Node.js specific
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+node_modules/
+dist/
+build/
+.nyc_output
+coverage/
+.nyc_output/
+coverage/
+
+# General
+.DS_Store
+Thumbs.db
 ```
