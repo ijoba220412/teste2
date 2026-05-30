@@ -1,0 +1,35 @@
+export const SYMPTOMS_DATA = [
+  { id: 'anemia', name: 'Anemia', file: 'anemia.png' },
+  { id: 'ansiedade', name: 'Ansiedade', file: 'ansiedade.png' },
+  { id: 'asma', name: 'Asma', file: 'asma.png' },
+  { id: 'cancro', name: 'Câncer', file: 'cancro.png' },
+  { id: 'circulacao', name: 'Circulação', file: 'circulacao.png' },
+  { id: 'colesterol', name: 'Colesterol', file: 'colesterol.png' },
+  { id: 'constipacao', name: 'Constipação', file: 'constipacao.png' },
+  { id: 'coracao', name: 'Coração', file: 'coracao.png' },
+  { id: 'depressao', name: 'Depressão', file: 'depressao.png' },
+  { id: 'diabetes', name: 'Diabetes', file: 'diabetes.png' },
+  { id: 'diarreia', name: 'Diarreia', file: 'diarreia.png' },
+  { id: 'dor', name: 'Dor', file: 'dor.png' },
+  { id: 'dorosteo', name: 'Dor Óssea', file: 'dorosteo.png' },
+  { id: 'dordecabeca', name: 'Dor de Cabeça', file: 'dordecabeca.png' },
+  { id: 'fadiga', name: 'Fadiga', file: 'fadiga.png' },
+  { id: 'falta', name: 'Falta de Ar', file: 'falta.png' },
+  { id: 'febre', name: 'Febre', file: 'febre.png' },
+  { id: 'infeccao', name: 'Infecção', file: 'infeccao.png' },
+  { id: 'insônia', name: 'Insônia', file: 'insônia.png' },
+  { id: 'nauseas', name: 'Náuseas', file: 'nauseas.png' },
+  { id: 'ossos', name: 'Ossos', file: 'ossos.png' },
+  { id: 'perda', name: 'Perda', file: 'perda.png' },
+  { id: 'prolapso', name: 'Prolapso', file: 'prolapso.png' },
+  { id: 'pulmonar', name: 'Pulmonar', file: 'pulmonar.png' },
+  { id: 'pele', name: 'Pele', file: 'pele.png' },
+  { id: 'saude', name: 'Saúde', file: 'saude.png' },
+  { id: 'sistemaimunologica', name: 'Sistema Imunológico', file: 'sistemaimunologica.png' },
+  { id: 'sono', name: 'Sono', file: 'sono.png' },
+  { id: 'vomito', name: 'Vômito', file: 'vomito.png' },
+];
+
+export function getSymptomImageUrl(symptomId: string): string {
+  return `/img/n/f/${symptomId}.png`;
+}
