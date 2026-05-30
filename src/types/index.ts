@@ -21,6 +21,7 @@ export interface Instituicao {
   tipo: string;
   email?: string;
   website?: string;
+  [key: string]: any; // Blindagem contra campos extras do Labs
 }
 
 export interface Profissional {
@@ -35,6 +36,7 @@ export interface Profissional {
   especialidade?: string;
   local?: string;
   observacoes?: string;
+  [key: string]: any;
 }
 
 export interface ItemMedicamento {
@@ -46,12 +48,14 @@ export interface ItemMedicamento {
   indicacao: string;
   medicamentold?: string;
   horaInicio?: string;
+  [key: string]: any;
 }
 
 export interface MedicamentoPosologia {
   texto_original_da_posologia: string;
   nome: string;
   indicacao: string;
+  [key: string]: any;
 }
 
 export interface Receita {
@@ -76,6 +80,7 @@ export interface Receita {
   itens: ItemMedicamento[];
   medicamentos_fixos: MedicamentoPosologia[];
   medicamentos_sos: MedicamentoPosologia[];
+  [key: string]: any;
 }
 
 export interface Paciente {
@@ -89,17 +94,33 @@ export interface Paciente {
   historico?: string;
   instituicaoId?: string;
   profissionalId?: string;
+  [key: string]: any;
 }
 
+// ============================================================================
+// MEDICAMENTO (Expandida para aceitar os campos do Google Labs)
+// ============================================================================
 export interface Medicamento {
   id?: string;
-  nomeComercial: string;
-  principioAtivo: string;
-  apresentacao: string;
-  fabricante: string;
-  // Campos extras que o Google Labs pode ter inventado
+  
+  // Campos do seu banco de dados original
+  nomeComercial?: string;
+  principioAtivo?: string;
+  apresentacao?: string;
+  fabricante?: string;
+  
+  // Campos que o Google Labs inventou para o formulário
+  nome?: string;
+  dosagem?: string;
+  indicacao?: string;
+  
+  // Arrays de suporte visual (usados na tela de impressão)
   symptoms?: Array<{ name: string; file: string }>;
   mealIcons?: Array<{ icon: string; label: string; hour: string }>;
+  
+  // 🛡️ BLINDAGEM: Permite qualquer outra propriedade.
+  // Isso evita que o build quebre se o Labs adicionar campos inesperados.
+  [key: string]: any; 
 }
 
 // ============================================================================
@@ -117,6 +138,7 @@ export interface MedicationItem {
   horarioInicio?: string;
   frequencia?: string;
   tipo?: string;
+  [key: string]: any;
 }
 
 export interface Prescription {
@@ -139,6 +161,7 @@ export interface Prescription {
   tipo?: 'continuo' | 'sos' | 'ambos' | string;
   observacoes?: string;
   status?: 'ativa' | 'cancelada' | 'concluida' | string;
+  [key: string]: any;
 }
 
 // ============================================================================
@@ -153,11 +176,11 @@ export interface Tomada {
   horario: string;
   status: AcaoTomada;
   registradoEm: string;
+  [key: string]: any;
 }
 
 // ============================================================================
 // 🛡️ BLINDAGEM DE ALIASES (INGLÊS -> PORTUGUÊS)
-// Evita erros de "has no exported member" do Google Labs
 // ============================================================================
 
 export type Medication = Medicamento;
