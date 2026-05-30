@@ -1,5 +1,7 @@
+import { Timestamp } from 'firebase/firestore';
+
 // ============================================================================
-// INTERFACES PARA FIRESTORE REAL (baseado nas suas imagens)
+// INTERFACES REAIS DO FIRESTORE (Baseadas nas suas imagens)
 // ============================================================================
 
 export interface Instituicao {
@@ -67,9 +69,9 @@ export interface Receita {
   dataEmissao?: string;
   data_nasc?: string;
   data_consulta?: string;
-  data_criacao?: string;
-  data_atualizacao?: string;
-  criado_em?: string;
+  data_criacao?: string | Timestamp;
+  data_atualizacao?: string | Timestamp;
+  criado_em?: string | Timestamp;
   setor_id?: string;
   itens: ItemMedicamento[];
   medicamentos_fixos: MedicamentoPosologia[];
@@ -95,30 +97,26 @@ export interface Medicamento {
   principioAtivo: string;
   apresentacao: string;
   fabricante: string;
+  // Campos extras que o Google Labs pode ter inventado
+  symptoms?: Array<{ name: string; file: string }>;
+  mealIcons?: Array<{ icon: string; label: string; hour: string }>;
 }
 
 // ============================================================================
-// INTERFACE PARA COMPONENTES EXISTENTES (dashboard + receita/[id])
-// ESTA É A QUE SEUS COMPONENTES REALMENTE USAM
+// INTERFACE DO DASHBOARD (Prescription)
 // ============================================================================
 
 export interface MedicationItem {
   nome: string;
   dosagem: string;
   doseQuantity: number;
-  apresentacao: 'comprimido' | 'capsula' | 'mL' | 'liquido';
-  mealIcons?: Array<{
-    icon: string;
-    label: string;
-    hour: string;
-  }>;
-  symptoms?: Array<{
-    name: string;
-    file: string;
-  }>;
+  apresentacao: 'comprimido' | 'capsula' | 'mL' | 'liquido' | string;
+  mealIcons?: Array<{ icon: string; label: string; hour: string }>;
+  symptoms?: Array<{ name: string; file: string }>;
   instrucoes?: string;
   horarioInicio?: string;
   frequencia?: string;
+  tipo?: string;
 }
 
 export interface Prescription {
@@ -127,30 +125,20 @@ export interface Prescription {
   patientRegistration?: string;
   patientBirthDate?: string;
   patientAllergies?: string;
-  
-  // Profissional
   doctorName?: string;
   doctorCrm?: string;
   pharmacistName?: string;
   pharmacistCrf?: string;
-  
-  // Instituição
   institutionName?: string;
   institutionAddress?: string;
   institutionPhone?: string;
-  
-  // Medicamentos (estrutura que seus componentes usam)
   medications: MedicationItem[];
-  
-  // Datas (Firestore Timestamp ou string)
-  createdAt?: any; // Firestore Timestamp ou string
+  createdAt?: any; 
   updatedAt?: any;
   prescriptionDate?: string;
-  
-  // Metadados
-  tipo?: 'continuo' | 'sos' | 'ambos';
+  tipo?: 'continuo' | 'sos' | 'ambos' | string;
   observacoes?: string;
-  status?: 'ativa' | 'cancelada' | 'concluida';
+  status?: 'ativa' | 'cancelada' | 'concluida' | string;
 }
 
 // ============================================================================
@@ -168,13 +156,16 @@ export interface Tomada {
 }
 
 // ============================================================================
-// ALIASES PARA COMPATIBILIDADE (evita erros de import)
+// 🛡️ BLINDAGEM DE ALIASES (INGLÊS -> PORTUGUÊS)
+// Evita erros de "has no exported member" do Google Labs
 // ============================================================================
 
+export type Medication = Medicamento;
+export type Medicine = Medicamento;
 export type Institution = Instituicao;
+export type Professional = Profissional;
 export type HealthcareProfessional = Profissional;
 export type Patient = Paciente;
-export type Medicine = Medicamento;
 export type PrescriptionItem = ItemMedicamento;
 export type Posology = MedicamentoPosologia;
 export type IntakeAction = AcaoTomada;
