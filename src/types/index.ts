@@ -1,51 +1,49 @@
-// COLEÇÃO: instituicoes (IDs automáticos do Firebase)
+// ============================================================================
+// INTERFACES PARA FIRESTORE REAL (baseado nas suas imagens)
+// ============================================================================
+
 export interface Instituicao {
   id?: string;
-  nome: string; // ex: "INCA - HCIII"
-  descricao: string; // ex: "INCA - HOSPITAL DO CÂNCER III"
-  
-  // CAMPOS DE ENDEREÇO PLANOS (como está no Firestore real)
+  nome: string;
+  descricao: string;
   rua: string;
   numero: string;
   complemento?: string;
   bairro: string;
   cidade: string;
-  uf: string; // ex: "RJ"
-  cep: string; // ex: "20560-120"
-  pais?: string; // ex: "Brasil"
-  
-  telefone1: string; // ex: "(21) 3207-3700"
+  uf: string;
+  cep: string;
+  pais?: string;
+  telefone1: string;
   telefone2?: string;
-  tipo: string; // ex: "Hospital"
+  tipo: string;
   email?: string;
   website?: string;
 }
 
-// COLEÇÃO: profissionais (IDs manuais em UPPERCASE: ANA_LIMA, RICARDO_DE_RODRIGUES)
 export interface Profissional {
-  id?: string; // ID manual em uppercase
-  nome: string; // ex: "ANA BEATRIZ LIMA"
-  cargo: string; // ex: "MÉDICO(A)" ou "FARMACÊUTICO(A)"
+  id?: string;
+  nome: string;
+  cargo: string;
   cargoOutro?: string;
-  numeroRegistro: string; // ex: "35598"
-  orgao: string; // ex: "CRF" ou "CRM"
-  uf: string; // ex: "RJ"
+  numeroRegistro: string;
+  orgao: string;
+  uf: string;
   email?: string;
   especialidade?: string;
   local?: string;
   observacoes?: string;
 }
 
-// COLEÇÃO: receitas (IDs automáticos)
 export interface ItemMedicamento {
   nomeMedicamento: string;
   principio?: string;
-  dose: string; // ex: "ESOMEPRAZOL 20 MG PARA PROTEGER O ESTÔMAGO"
-  horarios: string[]; // ex: ["00:00", "08:00", "16:00"]
-  intervalo: number; // ex: 8 (horas)
-  indicacao: string; // ex: "PARA PROTEGER O ESTÔMAGO"
+  dose: string;
+  horarios: string[];
+  intervalo: number;
+  indicacao: string;
   medicamentold?: string;
-  horaInicio?: string; // ex: "08:00"
+  horaInicio?: string;
 }
 
 export interface MedicamentoPosologia {
@@ -56,8 +54,8 @@ export interface MedicamentoPosologia {
 
 export interface Receita {
   id?: string;
-  nomePaciente: string; // ex: "MARLI FERREIRA"
-  prontuario: string; // ex: "5208248"
+  nomePaciente: string;
+  prontuario: string;
   pacienteId?: string;
   profissionalId?: string;
   medico?: string;
@@ -66,24 +64,23 @@ export interface Receita {
   farmaceutico_id?: string;
   instituicaoId?: string;
   nomeInstituicao?: string;
-  dataEmissao?: string; // ex: "2026-04-30"
+  dataEmissao?: string;
   data_nasc?: string;
   data_consulta?: string;
   data_criacao?: string;
   data_atualizacao?: string;
   criado_em?: string;
   setor_id?: string;
-  itens: ItemMedicamento[]; // array complexo
-  medicamentos_fixos: MedicamentoPosologia[]; // uso contínuo
-  medicamentos_sos: MedicamentoPosologia[]; // SOS
+  itens: ItemMedicamento[];
+  medicamentos_fixos: MedicamentoPosologia[];
+  medicamentos_sos: MedicamentoPosologia[];
 }
 
-// COLEÇÃO: pacientes
 export interface Paciente {
   id?: string;
   nome: string;
   dataNascimento: string;
-  matricula: string; // prontuário
+  matricula: string;
   alergias?: string;
   telefone?: string;
   endereco?: string;
@@ -92,7 +89,6 @@ export interface Paciente {
   profissionalId?: string;
 }
 
-// COLEÇÃO: medicamentos_padrao
 export interface Medicamento {
   id?: string;
   nomeComercial: string;
@@ -101,7 +97,66 @@ export interface Medicamento {
   fabricante: string;
 }
 
+// ============================================================================
+// INTERFACE PARA COMPONENTES EXISTENTES (dashboard + receita/[id])
+// ESTA É A QUE SEUS COMPONENTES REALMENTE USAM
+// ============================================================================
+
+export interface MedicationItem {
+  nome: string;
+  dosagem: string;
+  doseQuantity: number;
+  apresentacao: 'comprimido' | 'capsula' | 'mL' | 'liquido';
+  mealIcons?: Array<{
+    icon: string;
+    label: string;
+    hour: string;
+  }>;
+  symptoms?: Array<{
+    name: string;
+    file: string;
+  }>;
+  instrucoes?: string;
+  horarioInicio?: string;
+  frequencia?: string;
+}
+
+export interface Prescription {
+  id?: string;
+  patientName: string;
+  patientRegistration?: string;
+  patientBirthDate?: string;
+  patientAllergies?: string;
+  
+  // Profissional
+  doctorName?: string;
+  doctorCrm?: string;
+  pharmacistName?: string;
+  pharmacistCrf?: string;
+  
+  // Instituição
+  institutionName?: string;
+  institutionAddress?: string;
+  institutionPhone?: string;
+  
+  // Medicamentos (estrutura que seus componentes usam)
+  medications: MedicationItem[];
+  
+  // Datas (Firestore Timestamp ou string)
+  createdAt?: any; // Firestore Timestamp ou string
+  updatedAt?: any;
+  prescriptionDate?: string;
+  
+  // Metadados
+  tipo?: 'continuo' | 'sos' | 'ambos';
+  observacoes?: string;
+  status?: 'ativa' | 'cancelada' | 'concluida';
+}
+
+// ============================================================================
 // UTILITÁRIOS
+// ============================================================================
+
 export type AcaoTomada = 'tomado' | 'nao_tomado' | 'pulado';
 
 export interface Tomada {
@@ -111,3 +166,16 @@ export interface Tomada {
   status: AcaoTomada;
   registradoEm: string;
 }
+
+// ============================================================================
+// ALIASES PARA COMPATIBILIDADE (evita erros de import)
+// ============================================================================
+
+export type Institution = Instituicao;
+export type HealthcareProfessional = Profissional;
+export type Patient = Paciente;
+export type Medicine = Medicamento;
+export type PrescriptionItem = ItemMedicamento;
+export type Posology = MedicamentoPosologia;
+export type IntakeAction = AcaoTomada;
+export type ScheduledIntake = Tomada;
