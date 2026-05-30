@@ -5,7 +5,14 @@ import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from 'fireb
 import { db } from '@/lib/firebase';
 import { Medicamento } from '@/types';
 import { SYMPTOMS_DATA } from '@/lib/symptoms';
-import { Plus, Trash2, Pill, Edit, AlertCircle, Activity } from 'lucide-react';
+import { Plus, Trash2, Pill, Edit, Activity } from 'lucide-react';
+
+// Tipo auxiliar para o array de sintomas
+interface SymptomType {
+  id: string;
+  name: string;
+  file: string;
+}
 
 export default function MedicamentosPage() {
   const [meds, setMeds] = useState<Array<Medicamento & { id: string }>>([]);
@@ -21,7 +28,6 @@ export default function MedicamentosPage() {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // onSnapshot para atualizações em tempo real
   useEffect(() => {
     const unsub = onSnapshot(
       collection(db, 'medicamentos_padrao'),
@@ -70,13 +76,13 @@ export default function MedicamentosPage() {
 
   const handleEdit = (med: Medicamento & { id: string }) => {
     setForm({
-      nomeComercial: med.nomeComercial || med.nome || '',
-      principioAtivo: med.principioAtivo || '',
+      nomeComercial: (med.nomeComercial || med.nome || '').toUpperCase(),
+      principioAtivo: (med.principioAtivo || '').toUpperCase(),
       apresentacao: med.apresentacao || 'comprimido',
-      fabricante: med.fabricante || '',
-      dosagem: med.dosagem || '',
-      indicacao: med.indicacao || '',
-      symptomIds: med.symptomIds || (med.symptoms?.map(s => s.name.toLowerCase()) || []),
+      fabricante: (med.fabricante || '').toUpperCase(),
+      dosagem: (med.dosagem || '').toUpperCase(),
+      indicacao: (med.indicacao || '').toUpperCase(),
+      symptomIds: (med.symptomIds as string[]) || [],
     });
     setEditingId(med.id);
   };
@@ -132,12 +138,9 @@ export default function MedicamentosPage() {
         <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* CAMPOS BÁSICOS */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                  NOME COMERCIAL *
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">NOME COMERCIAL *</label>
                 <input
                   required
                   placeholder="EX: DIPIRONA"
@@ -148,9 +151,7 @@ export default function MedicamentosPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                  PRINCÍPIO ATIVO
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">PRINCÍPIO ATIVO</label>
                 <input
                   placeholder="EX: METAMIZOL SÓDICO"
                   value={form.principioAtivo}
@@ -160,9 +161,7 @@ export default function MedicamentosPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                  APRESENTAÇÃO *
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">APRESENTAÇÃO *</label>
                 <select
                   value={form.apresentacao}
                   onChange={e => setForm({ ...form, apresentacao: e.target.value })}
@@ -179,9 +178,7 @@ export default function MedicamentosPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                  FABRICANTE
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">FABRICANTE</label>
                 <input
                   placeholder="EX: NEO QUÍMICA"
                   value={form.fabricante}
@@ -191,12 +188,9 @@ export default function MedicamentosPage() {
               </div>
             </div>
 
-            {/* DOSAGEM E INDICAÇÃO */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                  DOSAGEM (EX: 500MG)
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">DOSAGEM (EX: 500MG)</label>
                 <input
                   placeholder="EX: 500MG"
                   value={form.dosagem}
@@ -206,9 +200,7 @@ export default function MedicamentosPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">
-                  PARA QUE SERVE (INDICAÇÃO)
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">PARA QUE SERVE (INDICAÇÃO)</label>
                 <input
                   placeholder="EX: ANALGÉSICO E ANTITÉRMICO"
                   value={form.indicacao}
@@ -218,13 +210,12 @@ export default function MedicamentosPage() {
               </div>
             </div>
 
-            {/* SINTOMAS */}
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-4 uppercase">
                 SINTOMAS QUE ESTE MEDICAMENTO TRATA:
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {SYMPTOMS_DATA.map(symptom => (
+                {SYMPTOMS_DATA.map((symptom: SymptomType) => (
                   <button
                     key={symptom.id}
                     type="button"
@@ -249,7 +240,6 @@ export default function MedicamentosPage() {
               </div>
             </div>
 
-            {/* BOTÕES */}
             <div className="flex gap-3">
               <button
                 type="submit"
@@ -283,7 +273,7 @@ export default function MedicamentosPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {meds.map(m => (
+              {meds.map((m: Medicamento & { id: string }) => (
                 <div key={m.id} className="flex items-center justify-between p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -315,10 +305,11 @@ export default function MedicamentosPage() {
                       </p>
                     )}
                     
-                    {m.symptomIds && m.symptomIds.length > 0 && (
+                    {/* CORREÇÃO DO ERRO DE TIPO AQUI ABAIXO */}
+                    {m.symptomIds && (m.symptomIds as string[]).length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-3">
-                        {m.symptomIds.map(sid => {
-                          const sym = SYMPTOMS_DATA.find(s => s.id === sid);
+                        {(m.symptomIds as string[]).map((sid: string) => {
+                          const sym = SYMPTOMS_DATA.find((s: SymptomType) => s.id === sid);
                           return sym ? (
                             <span
                               key={sid}
@@ -341,7 +332,7 @@ export default function MedicamentosPage() {
                       <Edit className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => handleDelete(m.id)}
+                      onClick={() => handleDelete(m.id || '')}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="EXCLUIR"
                     >
