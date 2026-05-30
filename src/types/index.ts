@@ -21,7 +21,7 @@ export interface Instituicao {
   tipo: string;
   email?: string;
   website?: string;
-  [key: string]: any; // Blindagem contra campos extras do Labs
+  [key: string]: any;
 }
 
 export interface Profissional {
@@ -97,30 +97,27 @@ export interface Paciente {
   [key: string]: any;
 }
 
-// ============================================================================
-// MEDICAMENTO (Expandida para aceitar os campos do Google Labs)
-// ============================================================================
 export interface Medicamento {
   id?: string;
-  
-  // Campos do seu banco de dados original
   nomeComercial?: string;
   principioAtivo?: string;
   apresentacao?: string;
   fabricante?: string;
-  
-  // Campos que o Google Labs inventou para o formulário
   nome?: string;
   dosagem?: string;
   indicacao?: string;
-  
-  // Arrays de suporte visual (usados na tela de impressão)
   symptoms?: Array<{ name: string; file: string }>;
   mealIcons?: Array<{ icon: string; label: string; hour: string }>;
-  
-  // 🛡️ BLINDAGEM: Permite qualquer outra propriedade.
-  // Isso evita que o build quebre se o Labs adicionar campos inesperados.
-  [key: string]: any; 
+  [key: string]: any;
+}
+
+// ============================================================================
+// TIPO CRIADO PARA O GOOGLE LABS (Symptom)
+// ============================================================================
+export interface Symptom {
+  id: string;
+  name: string;
+  file: string;
 }
 
 // ============================================================================
