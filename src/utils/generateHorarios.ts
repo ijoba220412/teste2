@@ -1,4 +1,9 @@
-import { MealIcon } from '@/types';
+// Define o tipo localmente para não depender de import quebrado
+export interface MealIcon {
+  icon: string;
+  label: string;
+  hour: string;
+}
 
 export const MEDICATION_ICONS: Record<string, string> = {
   comprimido: '/img/n/f/comprimido.png',
@@ -11,12 +16,12 @@ export const MEDICATION_ICONS: Record<string, string> = {
 };
 
 export const MEAL_ICONS: Record<string, { icon: string; label: string }> = {
-  '05:00-09:00': { icon: '/img/n/f/cafe.png', label: 'Café da Manhã' },
-  '09:00-11:00': { icon: '/img/n/f/lanche.png', label: 'Lanche da Manhã' },
-  '11:00-14:00': { icon: '/img/n/f/almoco.png', label: 'Almoço' },
-  '14:00-17:00': { icon: '/img/n/f/lanche.png', label: 'Lanche da Tarde' },
-  '17:00-20:00': { icon: '/img/n/f/jantar.png', label: 'Jantar' },
-  '20:00-05:00': { icon: '/img/n/f/dormir.png', label: 'Antes de Dormir' },
+  '05:00-09:00': { icon: '/img/n/f/cafe.png', label: 'CAFÉ DA MANHÃ' },
+  '09:00-11:00': { icon: '/img/n/f/lanche.png', label: 'LANCHE DA MANHÃ' },
+  '11:00-14:00': { icon: '/img/n/f/almoco.png', label: 'ALMOÇO' },
+  '14:00-17:00': { icon: '/img/n/f/lanche.png', label: 'LANCHE DA TARDE' },
+  '17:00-20:00': { icon: '/img/n/f/jantar.png', label: 'JANTAR' },
+  '20:00-05:00': { icon: '/img/n/f/dormir.png', label: 'ANTES DE DORMIR' },
 };
 
 export function getMealIcon(hour: string): { icon: string; label: string } {
@@ -30,9 +35,7 @@ export function getMealIcon(hour: string): { icon: string; label: string } {
 }
 
 export function calculateHours(startHour: string, frequency: number): string[] {
-  if (frequency <= 0 || frequency > 12) {
-    frequency = 2;
-  }
+  if (frequency <= 0 || frequency > 12) frequency = 2;
   
   const interval = Math.floor(24 / frequency);
   const [startH, startM] = startHour.split(':').map(Number);
