@@ -190,3 +190,9 @@ export type PrescriptionItem = ItemMedicamento;
 export type Posology = MedicamentoPosologia;
 export type IntakeAction = AcaoTomada;
 export type ScheduledIntake = Tomada;
+
+export interface MealIcon {
+  icon: string;
+  label: string;
+  hour: string;
+}
