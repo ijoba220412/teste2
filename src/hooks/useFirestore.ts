@@ -1,59 +1,94 @@
 import { useState, useEffect } from 'react';
 import { 
   collection, 
-  query, 
-  onSnapshot, 
   doc, 
+  getDoc, 
+  getDocs, 
   addDoc, 
   updateDoc, 
-  deleteDoc, 
-  setDoc,
-  DocumentData,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
   QueryConstraint
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-export function useFirestore<T>(collectionName: string) {
-  const [data, setData] = useState<T[]>([]);
+export function useFirestore(collectionName: string) {
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // LISTAR (REAL-TIME)
-  const list = (constraints: QueryConstraint[] = []) => {
-    const q = query(collection(db, collectionName), ...constraints);
-    
-    return onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as T[];
+  const fetchData = async (constraints: QueryConstraint[] = []) => {
+    try {
+      setLoading(true);
+      const q = query(collection(db, collectionName), ...constraints);
+      const snapshot = await getDocs(q);
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setData(items);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
       setLoading(false);
-    }, (error) => {
-      console.error(`ERRO AO BUSCAR ${collectionName.toUpperCase()}:`, error);
-      setLoading(false);
-    });
+    }
   };
 
-  // ADICIONAR (AUTO ID)
-  const add = async (item: Omit<T, 'id'>) => {
-    return await addDoc(collection(db, collectionName), item as DocumentData);
+  const getById = async (id: string) => {
+    try {
+      const docRef = doc(db, collectionName, id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+      return null;
+    } catch (err: any) {
+      setError(err.message);
+      return null;
+    }
   };
 
-  // ADICIONAR (ID MANUAL - USADO EM PROFISSIONAIS)
-  const addWithId = async (id: string, item: Omit<T, 'id'>) => {
-    return await setDoc(doc(db, collectionName, id.toUpperCase()), item as DocumentData);
+  const add = async (item: any) => {
+    try {
+      const docRef = await addDoc(collection(db, collectionName), item);
+      return docRef.id;
+    } catch (err: any) {
+      setError(err.message);
+      return null;
+    }
   };
 
-  // ATUALIZAR
-  const update = async (id: string, item: Partial<T>) => {
-    const docRef = doc(db, collectionName, id);
-    return await updateDoc(docRef, item as DocumentData);
+  const update = async (id: string, item: any) => {
+    try {
+      const docRef = doc(db, collectionName, id);
+      await updateDoc(docRef, item);
+      return true;
+    } catch (err: any) {
+      setError(err.message);
+      return false;
+    }
   };
 
-  // REMOVER
   const remove = async (id: string) => {
-    return await deleteDoc(doc(db, collectionName, id));
+    try {
+      await deleteDoc(doc(db, collectionName, id));
+      return true;
+    } catch (err: any) {
+      setError(err.message);
+      return false;
+    }
   };
 
-  return { data, loading, list, add, addWithId, update, remove };
+  return {
+    data,
+    loading,
+    error,
+    fetchData,
+    getById,
+    add,
+    update,
+    remove,
+  };
 }
+
+export default useFirestore;
