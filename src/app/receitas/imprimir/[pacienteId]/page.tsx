@@ -1,230 +1,164 @@
-// src/app/receitas/imprimir/[pacienteId]/page.tsx
 'use client';
-
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { Printer, AlertTriangle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Prescription } from '@/types';
+import { MEDICATION_ICONS } from '@/utils/generateHorarios';
+import { Printer, ArrowLeft } from 'lucide-react';
 
-export default function ImprimirReceita({ params }: { params: { pacienteId: string } }) {
-  const [receita, setReceita] = useState<any>(null);
+export default function ImprimirReceita() {
+  const { pacienteId } = useParams();
+  const router = useRouter();
+  const [prescription, setPrescription] = useState<Prescription | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Lista de horários padrão para o cabeçalho da tabela (de 2h em 2h)
-  const horariosCols = ['02', '04', '06', '08', '10', '12', '14', '16', '18', '20', '22', '24'];
-
   useEffect(() => {
-    const fetchDirect = async () => {
-      try {
-        setLoading(true);
-        // BUSCA 1: Tenta o ID DIRETO do Firebase (ID Automático)
-        const docRef = doc(db, 'receitas', params.pacienteId);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          setReceita({ id: docSnap.id, ...docSnap.data() });
-        } else {
-          // BUSCA 2: Se falhar o ID, tenta buscar pelo campo prontuario
-          const q = query(collection(db, 'receitas'), where('prontuario', '==', params.pacienteId));
-          const querySnap = await getDocs(q);
-          if (!querySnap.empty) {
-            setReceita({ id: querySnap.docs[0].id, ...querySnap.docs[0].data() });
-          }
+    (async () => {
+      if (pacienteId) {
+        const snap = await getDoc(doc(db, 'prescriptions', pacienteId as string));
+        if (snap.exists()) {
+          setPrescription({ id: snap.id, ...snap.data() } as Prescription);
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchDirect();
-  }, [params.pacienteId]);
+      setLoading(false);
+    })();
+  }, [pacienteId]);
 
-  // Verifica se o array de horários do medicamento inclui a hora da coluna
-  // Ex: array ["06:00", "12:00"] e hora "06" -> true
-  const verificaHorario = (horariosMed: string[], horaCol: string) => {
-    if (!horariosMed || !Array.isArray(horariosMed)) return false;
-    return horariosMed.some(h => h.startsWith(horaCol));
-  };
+  const print = () => window.print();
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4 uppercase font-black">
-      <Loader2 className="animate-spin text-teal-700" size={60} />
-      <p>Acessando Dados...</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="text-center py-12 text-lg">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+        Carregando receita...
+      </div>
+    );
+  }
 
-  if (!receita) return (
-    <div className="p-20 text-center flex flex-col items-center gap-6 bg-white min-h-screen uppercase">
-      <AlertTriangle size={100} className="text-rose-500" />
-      <h1 className="text-3xl font-black">Receita Não Encontrada</h1>
-      <p className="text-slate-500 font-bold max-w-lg">
-        Não localizamos a prescrição para o ID: <span className="text-rose-600 border-b-4 border-rose-100">"{params.pacienteId}"</span>
-      </p>
-      <Button onClick={() => window.history.back()} className="mt-4 bg-teal-700">VOLTAR</Button>
-    </div>
-  );
-
-  const usoContinuo = receita.itens || receita.medicamentos_fixos || [];
-  const sos = receita.medicamentos_sos || [];
+  if (!prescription) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-slate-500 text-lg">Receita não encontrada</p>
+        <button 
+          onClick={() => router.push('/dashboard')}
+          className="btn-primary mt-4"
+        >
+          <ArrowLeft /> Voltar
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8 flex justify-center print:bg-white print:p-0">
-      
-      {/* Botão flutuante para impressão (não sai no papel) */}
-      <div className="fixed bottom-8 right-8 print:hidden z-50">
-        <Button onClick={() => window.print()} className="bg-teal-700 hover:bg-teal-800 text-white font-black px-8 py-6 shadow-2xl rounded-full flex gap-3 text-lg border-2 border-white">
-          <Printer size={28} /> IMPRIMIR
-        </Button>
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-3 no-print">
+        <button 
+          onClick={() => router.push('/dashboard')} 
+          className="btn-secondary"
+        >
+          <ArrowLeft /> Voltar
+        </button>
+        <button 
+          onClick={print} 
+          className="btn-primary"
+        >
+          <Printer /> Imprimir / PDF
+        </button>
       </div>
 
-      {/* Container principal (simulando uma folha A4) */}
-      <div className="bg-white w-full max-w-5xl p-10 shadow-lg rounded-sm text-gray-800 font-sans print:shadow-none print:w-full print:max-w-none print:p-4">
-        
-        {/* CABEÇALHO */}
-        <div className="flex justify-between items-start border-b-2 border-gray-300 pb-6 mb-6">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold uppercase tracking-wider text-gray-900 mb-2">
-              {receita.instituicaoNome || 'Instituição de Saúde'}
-            </h1>
-            <p><span className="font-semibold text-gray-700 uppercase">Paciente:</span> <span className="uppercase">{receita.nomePaciente}</span></p>
-            <p><span className="font-semibold text-gray-700 uppercase">Nascimento:</span> {receita.data_nasc || 'DD/MM/AAAA'}</p>
-            <p><span className="font-semibold text-gray-700 uppercase">Alergia:</span> Nega alergias (Padrão)</p>
-          </div>
-          <div className="text-right space-y-1">
-            <p><span className="font-semibold text-gray-700 uppercase">Data:</span> {new Date().toLocaleDateString('pt-BR')}</p>
-            <p><span className="font-semibold text-gray-700 uppercase">Prontuário:</span> {receita.prontuario}</p>
-          </div>
+      <div id="printable-receipt" className="bg-white rounded-3xl shadow-lg p-8 sm:p-12 border-4 border-primary">
+        <header className="text-center border-b-2 border-primary pb-6 mb-8">
+          <h1 className="text-4xl font-extrabold text-primary">Receita Facilitada</h1>
+          <p className="text-xl text-slate-700 mt-2">
+            Paciente: <strong>{prescription.patientName}</strong>
+          </p>
+          <p className="text-sm text-slate-500 mt-1">
+            Emitida em: {prescription.createdAt?.toDate 
+              ? prescription.createdAt.toDate().toLocaleDateString('pt-BR') 
+              : new Date().toLocaleDateString('pt-BR')}
+          </p>
+        </header>
+
+        <div className="space-y-8">
+          {prescription.medications.map((med, idx) => (
+            <div key={idx} className="border-2 border-slate-200 rounded-2xl p-6 bg-slate-50">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h2 className="text-2xl font-bold text-slate-800">{med.nome}</h2>
+                <span className="text-sm bg-primary text-white px-3 py-1 rounded-full font-bold">
+                  {med.dosagem}
+                </span>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-xs font-bold uppercase text-slate-500 mb-2">
+                  Tomar a cada dose:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: med.doseQuantity }).map((_, i) => (
+                    <img 
+                      key={i}
+                      src={MEDICATION_ICONS[med.apresentacao] || MEDICATION_ICONS.comprimido} 
+                      alt={med.apresentacao}
+                      className="w-12 h-12 object-contain"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold uppercase text-slate-500 mb-2">
+                  Horários do dia:
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {med.mealIcons?.map((mi, i) => (
+                    <div key={i} className="bg-white rounded-xl px-4 py-3 shadow border-2 border-teal-200 flex items-center gap-2">
+                      <img 
+                        src={mi.icon} 
+                        alt={mi.label}
+                        className="w-10 h-10 object-contain"
+                      />
+                      <div>
+                        <p className="font-bold text-slate-800">{mi.label}</p>
+                        <p className="text-sm text-slate-500">{mi.hour}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {med.symptoms && med.symptoms.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-bold uppercase text-slate-500 mb-2">
+                    Para que serve:
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {med.symptoms.map((symptom, i) => (
+                      <div key={i} className="bg-white rounded-xl p-3 shadow border-2 border-teal-200 text-center">
+                        <img 
+                          src={`/img/n/f/${symptom.file}`} 
+                          alt={symptom.name}
+                          className="w-16 h-16 object-contain mx-auto mb-1"
+                        />
+                        <p className="text-xs font-bold text-slate-700">{symptom.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* USO CONTÍNUO */}
-        {usoContinuo.length > 0 && (
-          <div className="mb-10">
-            <h2 className="text-lg font-bold text-center mb-4 uppercase bg-gray-200 py-1 rounded print:bg-gray-200 print:text-black">
-              Uso Contínuo - Aprazamento
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-400 text-sm">
-                <thead>
-                  <tr className="bg-gray-50 print:bg-gray-50">
-                    <th className="border border-gray-400 p-2 text-left w-1/4 uppercase">Medicamento</th>
-                    {horariosCols.map((hora) => (
-                      <th key={hora} className="border border-gray-400 p-2 text-center w-8">
-                        {hora}
-                      </th>
-                    ))}
-                    <th className="border border-gray-400 p-2 text-center w-24 uppercase">Para que<br/>serve</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usoContinuo.map((med: any, i: number) => (
-                    <tr key={i}>
-                      <td className="border border-gray-400 p-2">
-                        <p className="font-bold uppercase text-sm">{med.nomeMedicamento || med.nome}</p>
-                        <p className="text-gray-600 text-xs uppercase">{med.dose || med.apresentacao}</p>
-                      </td>
-                      {horariosCols.map((hora) => (
-                        <td key={`${i}-${hora}`} className="border border-gray-400 p-2 text-center align-middle">
-                          {verificaHorario(med.horarios, hora) && (
-                            <div className="mx-auto w-4 h-4 rounded-full bg-black print:bg-black" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
-                          )}
-                        </td>
-                      ))}
-                      <td className="border border-gray-400 p-2 text-center text-xs font-semibold uppercase">
-                        {med.indicacao}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* SOS */}
-        {sos.length > 0 && (
-          <div className="mb-10">
-            <h2 className="text-lg font-bold text-center mb-4 uppercase bg-gray-200 py-1 rounded print:bg-gray-200 print:text-black">
-              S. O. S. (Se Necessário)
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-400 text-sm">
-                <thead>
-                  <tr className="bg-gray-50 print:bg-gray-50">
-                    <th className="border border-gray-400 p-2 text-left w-1/4 uppercase">Medicamento</th>
-                    {horariosCols.map((hora) => (
-                      <th key={`sos-h-${hora}`} className="border border-gray-400 p-2 text-center w-8">
-                        {hora}
-                      </th>
-                    ))}
-                    <th className="border border-gray-400 p-2 text-center w-24 uppercase">Para que<br/>serve</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sos.map((med: any, i: number) => (
-                    <tr key={`sos-${i}`}>
-                      <td className="border border-gray-400 p-2">
-                        <p className="font-bold uppercase text-sm">{med.nome}</p>
-                        <p className="text-gray-600 text-[10px] uppercase font-bold mt-1">
-                          {med.texto_original_da_posologia}
-                        </p>
-                      </td>
-                      {horariosCols.map((hora) => (
-                        <td key={`sos-${i}-${hora}`} className="border border-gray-400 p-2 text-center">
-                          {/* SOS geralmente não tem horário fixo salvo no banco, deixamos em branco para marcação manual ou adicionamos lógica extra se necessário */}
-                        </td>
-                      ))}
-                      <td className="border border-gray-400 p-2 text-center text-xs font-semibold uppercase">
-                        {med.indicacao || 'SOS'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* RODAPÉ E ASSINATURAS */}
-        <div className="mt-20 pt-8 flex flex-col md:flex-row justify-between items-center text-center gap-12">
-          <div className="w-full md:w-1/3">
-            <div className="border-b border-gray-800 w-full mb-2"></div>
-            <p className="font-bold text-gray-800 uppercase">Médico(a) Resp.</p>
-            <p className="text-gray-600 text-sm uppercase">{receita.medico || 'MÉDICO(A) NÃO IDENTIFICADO(A)'}</p>
-          </div>
-          
-          <div className="w-full md:w-1/3">
-            <div className="border-b border-gray-800 w-full mb-2"></div>
-            <p className="font-bold text-gray-800 uppercase">Farmacêutico(a)</p>
-            <p className="text-gray-600 text-sm uppercase">{receita.farmaceutico || '___________________________'}</p>
-          </div>
-        </div>
-
+        <footer className="mt-12 pt-6 border-t-2 border-slate-200 text-center">
+          <p className="text-sm text-slate-500">
+            Receita Facilitada — Segurança e clareza para todos
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            Em caso de dúvidas, procure seu farmacêutico ou médico.
+          </p>
+        </footer>
       </div>
-
-      {/* ESTILOS GLOBAIS PARA IMPRESSÃO */}
-      <style jsx global>{`
-        @media print {
-          body { 
-            background-color: white !important; 
-            margin: 0; 
-            padding: 0; 
-          }
-          .bg-gray-100 { 
-            background-color: white !important; 
-          }
-          @page { 
-            size: A4 portrait; 
-            margin: 1cm; 
-          }
-          /* Força a impressão das cores de fundo (bg-gray-200) e as bolinhas pretas */
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
