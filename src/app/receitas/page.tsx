@@ -1,142 +1,234 @@
-// src/app/receitas/page.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useFirestore } from '@/hooks/useFirestore';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { 
-  ClipboardList, 
-  Search, 
-  Printer, 
-  Calendar, 
-  User, 
-  Hash, 
-  ChevronRight,
-  FileText,
-  Filter
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Receita } from '@/types';
 import Link from 'next/link';
+import { Plus, FileText, Search, Printer, Trash2, Activity, AlertCircle } from 'lucide-react';
 
 export default function ListagemReceitasPage() {
-  const { data: receitas, loading, list } = useFirestore<any>('receitas');
+  const [receitas, setReceitas] = useState<Array<Receita & { id: string }>>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Busca receitas em tempo real, ordenadas pela data de criação
   useEffect(() => {
-    const unsubscribe = list();
-    return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
+    const q = query(collection(db, 'receitas'), orderBy('data_criacao', 'desc'));
+    
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const data = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as Array<Receita & { id: string }>;
+        setReceitas(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Erro ao carregar receitas:', error);
+        setLoading(false);
       }
-    };
+    );
+
+    return () => unsub();
   }, []);
 
-  // Filtro de busca por nome ou prontuário
-  const receitasFiltradas = receitas.filter((r: any) => {
-    const nome = r.nomePaciente?.toLowerCase() || '';
-    const prontuario = r.prontuario?.toString() || '';
-    const busca = searchTerm.toLowerCase();
-    return nome.includes(busca) || prontuario.includes(busca);
+  const handleDelete = async (id: string) => {
+    if (confirm('CONFIRMA EXCLUSÃO DESTA RECEITA?')) {
+      try {
+        await deleteDoc(doc(db, 'receitas', id));
+      } catch (error) {
+        console.error('Erro ao excluir:', error);
+        alert('ERRO AO EXCLUIR RECEITA');
+      }
+    }
+  };
+
+  // Função para formatar datas em DD/MM/AAAA
+  const formatDate = (dateStr: string | any | undefined | null): string => {
+    if (!dateStr) return '';
+    
+    // Se for string no formato DD/MM/AAAA
+    if (typeof dateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+    
+    // Se for string ISO (YYYY-MM-DD)
+    if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+      const [year, month, day] = dateStr.substring(0, 10).split('-');
+      return `${day}/${month}/${year}`;
+    }
+    
+    // Se for objeto Timestamp do Firebase ou Date
+    try {
+      let date: Date;
+      if (dateStr.toDate && typeof dateStr.toDate === 'function') {
+        date = dateStr.toDate();
+      } else {
+        date = new Date(dateStr);
+      }
+      
+      if (!isNaN(date.getTime())) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      }
+    } catch (e) {}
+    
+    return '';
+  };
+
+  // Filtro de busca por nome do paciente ou prontuário
+  const filteredReceitas = receitas.filter(r => {
+    const term = searchTerm.toUpperCase();
+    return (
+      r.nomePaciente?.toUpperCase().includes(term) ||
+      r.prontuario?.toUpperCase().includes(term) ||
+      r.medico?.toUpperCase().includes(term)
+    );
   });
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] uppercase font-black text-teal-800 gap-3">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-700"></div>
-        <span>Carregando Prescrições...</span>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Activity className="w-12 h-12 text-teal-700 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-semibold uppercase">CARREGANDO RECEITAS...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* CABEÇALHO DA PÁGINA */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b-4 border-teal-800 pb-6">
-        <div>
-          <h1 className="text-3xl font-black text-teal-900 uppercase tracking-tighter flex items-center gap-3">
-            <ClipboardList className="text-teal-600" size={32} />
-            Gestão de Receitas
-          </h1>
-          <p className="text-slate-500 font-bold uppercase text-xs mt-1">Consulte e imprima as prescrições facilitadas</p>
-        </div>
-
-        <div className="flex gap-2 w-full md:w-auto">
-          <Link href="/receitas/nova">
-            <Button className="bg-teal-700 hover:bg-teal-800 text-white px-6 py-4 shadow-lg rounded-xl flex gap-2">
-              <FileText size={20} /> NOVA PRESCRIÇÃO
-            </Button>
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <FileText className="w-8 h-8 text-teal-700" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 uppercase">
+              LISTAGEM DE RECEITAS
+            </h1>
+          </div>
+          
+          <Link
+            href="/receitas/nova"
+            className="flex items-center justify-center gap-2 bg-teal-700 hover:bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold uppercase transition-colors shadow-lg"
+          >
+            <Plus className="w-5 h-5" /> NOVA RECEITA
           </Link>
         </div>
-      </header>
 
-      {/* BARRA DE BUSCA */}
-      <div className="relative group">
-        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-          <Search className="text-slate-400 group-focus-within:text-teal-500 transition-colors" size={20} />
+        {/* BARRA DE BUSCA */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="BUSCAR POR PACIENTE, PRONTUÁRIO OU MÉDICO..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase bg-white shadow-sm"
+          />
         </div>
-        <input 
-          type="text"
-          placeholder="BUSCAR POR NOME DO PACIENTE OU NÚMERO DO PRONTUÁRIO..."
-          className="w-full pl-12 pr-4 py-5 bg-white border-2 border-slate-100 rounded-2xl shadow-sm focus:border-teal-500 outline-none uppercase font-bold text-sm transition-all"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
 
-      {/* LISTAGEM EM CARDS */}
-      <div className="grid grid-cols-1 gap-4">
-        {receitasFiltradas.length > 0 ? (
-          receitasFiltradas.map((receita: any) => (
-            <Card key={receita.id} className="group hover:border-teal-500 transition-all border-2 border-transparent shadow-md hover:shadow-xl overflow-hidden p-0">
-              <div className="flex flex-col md:flex-row items-stretch md:items-center">
+        {/* LISTA DE RECEITAS */}
+        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+          {filteredReceitas.length === 0 ? (
+            <div className="text-center py-16">
+              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg font-semibold uppercase">
+                {searchTerm ? 'NENHUMA RECEITA ENCONTRADA PARA ESTA BUSCA' : 'NENHUMA RECEITA CADASTRADA'}
+              </p>
+              {!searchTerm && (
+                <p className="text-gray-400 text-sm mt-2 uppercase">
+                  CLIQUE EM "NOVA RECEITA" PARA COMEÇAR
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {filteredReceitas.map((r) => {
+                const qtdFixos = r.medicamentos_fixos?.length || 0;
+                const qtdSos = r.medicamentos_sos?.length || 0;
+                const totalMeds = qtdFixos + qtdSos;
                 
-                {/* INFO PRINCIPAL */}
-                <div className="flex-1 p-6 flex flex-col md:flex-row md:items-center gap-6">
-                  <div className="bg-teal-50 p-4 rounded-2xl text-teal-700 group-hover:bg-teal-700 group-hover:text-white transition-colors duration-300 shadow-inner">
-                    <User size={28} />
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <h3 className="text-xl font-black text-slate-800 uppercase leading-none tracking-tight">
-                      {receita.nomePaciente || 'PACIENTE SEM NOME'}
-                    </h3>
-                    <div className="flex flex-wrap gap-4 pt-1">
-                      <span className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase">
-                        <Hash size={12} className="text-teal-500" /> Prontuário: <span className="text-slate-800">{receita.prontuario || 'N/I'}</span>
-                      </span>
-                      <span className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase">
-                        <Calendar size={12} className="text-teal-500" /> Emissão: <span className="text-slate-800">{receita.dataEmissao || receita.data_criacao || '--/--/--'}</span>
-                      </span>
+                return (
+                  <div key={r.id} className="p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      
+                      {/* INFORMAÇÕES DA RECEITA */}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h2 className="text-xl font-bold text-gray-900 uppercase">
+                            {r.nomePaciente || 'PACIENTE SEM NOME'}
+                          </h2>
+                          {r.prontuario && (
+                            <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full font-bold uppercase">
+                              PRONTUÁRIO: {r.prontuario}
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-600 uppercase mb-3">
+                          <p>
+                            <span className="font-semibold text-gray-700">EMISSÃO:</span>{' '}
+                            {formatDate(r.dataEmissao || r.data_criacao)}
+                          </p>
+                          {r.medico && (
+                            <p>
+                              <span className="font-semibold text-gray-700">MÉDICO:</span>{' '}
+                              {r.medico}
+                            </p>
+                          )}
+                          <p>
+                            <span className="font-semibold text-gray-700">MEDICAMENTOS:</span>{' '}
+                            {totalMeds} {totalMeds === 1 ? 'ITEM' : 'ITENS'}
+                            {qtdFixos > 0 && ` (${qtdFixos} FIXO${qtdFixos > 1 ? 'S' : ''})`}
+                            {qtdSos > 0 && ` (${qtdSos} SOS)`}
+                          </p>
+                        </div>
+
+                        {/* TAGS DE TIPO */}
+                        <div className="flex flex-wrap gap-2">
+                          {qtdFixos > 0 && (
+                            <span className="text-xs bg-teal-100 text-teal-800 px-3 py-1 rounded-full font-bold uppercase">
+                              USO CONTÍNUO
+                            </span>
+                          )}
+                          {qtdSos > 0 && (
+                            <span className="text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-bold uppercase">
+                              SOS
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* AÇÕES */}
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/receitas/imprimir/${r.id}`}
+                          className="flex items-center gap-2 bg-teal-700 hover:bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-semibold uppercase transition-colors shadow-sm"
+                        >
+                          <Printer className="w-4 h-4" /> IMPRIMIR
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(r.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="EXCLUIR"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-                {/* BOTÕES DE AÇÃO */}
-                <div className="bg-slate-50 md:bg-transparent p-4 md:p-6 border-t md:border-t-0 md:border-l border-slate-100 flex gap-2">
-                  
-                  {/* Link dinâmico usando o ID do Firebase */}
-                  <Link href={`/receitas/imprimir/${receita.id}`} className="flex-1 md:flex-none">
-                    <Button variant="outline" className="w-full flex gap-2 border-2 border-teal-700 text-teal-700 font-black hover:bg-teal-50 rounded-xl px-6 py-3">
-                      <Printer size={18} /> IMPRIMIR VISUAL
-                    </Button>
-                  </Link>
-
-                  <Link href={`/receitas/editar/${receita.id}`}>
-                    <Button variant="secondary" className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-3 rounded-xl flex items-center justify-center">
-                      <ChevronRight size={20} />
-                    </Button>
-                  </Link>
-                </div>
-
-              </div>
-            </Card>
-          ))
-        ) : (
-          <div className="py-20 text-center flex flex-col items-center gap-4 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-            <Filter size={48} className="text-slate-200" />
-            <p className="text-slate-400 font-black uppercase tracking-widest">Nenhuma receita encontrada para essa busca</p>
-          </div>
-        )}
       </div>
     </div>
   );
