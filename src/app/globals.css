@@ -1,67 +1,59 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* ANIMAÇÕES PERSONALIZADAS */
-@keyframes slide-in {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+:root {
+  --primary: #0D9488;
+  --primary-dark: #0F766E;
+  --background: #F8FAFC;
+  --surface: #FFFFFF;
+  --text: #1E293B;
 }
 
-@keyframes modal-in {
-  from {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
+body {
+  font-family: 'Nunito', sans-serif;
+  background-color: var(--background);
+  color: var(--text);
 }
 
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
-}
-
-.animate-modal-in {
-  animation: modal-in 0.2s ease-out;
-}
-
-/* SCROLLBAR PERSONALIZADA */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #0d9488;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #0f766e;
-}
-
-/* ESTILOS DE IMPRESSÃO */
 @media print {
-  .print\:hidden {
+  body * {
+    visibility: hidden;
+  }
+  
+  #printable-receipt, 
+  #printable-receipt * {
+    visibility: visible;
+  }
+  
+  #printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+  }
+  
+  .no-print {
     display: none !important;
   }
-  
-  body {
-    background: white !important;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-lg;
   }
   
-  .print\:break-before-page {
-    break-before: page;
+  .btn-secondary {
+    @apply bg-white text-primary border-2 border-primary px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-teal-50 transition-all;
+  }
+  
+  .card {
+    @apply bg-white p-6 rounded-2xl shadow-sm ring-1 ring-slate-200;
+  }
+  
+  .input-field {
+    @apply w-full border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary outline-none;
   }
 }
