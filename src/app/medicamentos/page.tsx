@@ -1,124 +1,208 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import { useFirestore } from '@/hooks/useFirestore';
-import { Medicamento } from '@/types';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Plus, Info, Edit2, X } from 'lucide-react';
-import { MedIcon } from '@/components/ui/MedIcon';
+import { useEffect, useState } from 'react';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Medication } from '@/types';
+import { SYMPTOMS_DATA } from '@/lib/symptoms';
+import { Plus, Trash2, Pill, Edit } from 'lucide-react';
 
 export default function MedicamentosPage() {
-  const { data: medicamentos, loading, list, add, update } = useFirestore<Medicamento>('medicamentos_padrao');
-  const [showForm, setShowForm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  
-  const [newMed, setNewMed] = useState<Partial<Medicamento>>({
-    nome: '', apresentacao: 'comprimido', indicacao: ''
+  const [meds, setMeds] = useState<Medication[]>([]);
+  const [form, setForm] = useState({ 
+    nome: '', 
+    dosagem: '', 
+    apresentacao: 'comprimido' as const,
+    indicacao: '',
+    symptomIds: [] as string[]
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const opcoesApresentacao = ['capsula', 'comprimido', 'gotas', 'liquido', 'OUTROS'];
+  const load = async () => {
+    const snap = await getDocs(collection(db, 'medications'));
+    setMeds(snap.docs.map(d => ({ id: d.id, ...d.data() } as Medication)));
+  };
 
-  useEffect(() => {
-    const unsubscribe = list();
-    return () => unsubscribe();
+  useEffect(() => { 
+    load(); 
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
+  const toggleSymptom = (symptomId: string) => {
+    setForm(prev => ({
+      ...prev,
+      symptomIds: prev.symptomIds.includes(symptomId)
+        ? prev.symptomIds.filter(id => id !== symptomId)
+        : [...prev.symptomIds, symptomId]
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isEditing && newMed.id) {
-      await update(newMed.id, newMed as Medicamento);
+    
+    if (editingId) {
+      await updateDoc(doc(db, 'medications', editingId), form);
     } else {
-      await add(newMed as Medicamento);
+      await addDoc(collection(db, 'medications'), form);
     }
-    resetForm();
+    
+    setForm({ 
+      nome: '', 
+      dosagem: '', 
+      apresentacao: 'comprimido',
+      indicacao: '',
+      symptomIds: []
+    });
+    setEditingId(null);
+    load();
   };
 
-  const resetForm = () => {
-    setShowForm(false);
-    setIsEditing(false);
-    setNewMed({ nome: '', apresentacao: 'comprimido', indicacao: '' });
+  const handleEdit = (med: Medication) => {
+    setForm({
+      nome: med.nome || '',
+      dosagem: med.dosagem || '',
+      apresentacao: med.apresentacao || 'comprimido',
+      indicacao: med.indicacao || '',
+      symptomIds: med.symptomIds || [],
+    });
+    setEditingId(med.id);
   };
 
-  const handleEdit = (med: Medicamento) => {
-    setNewMed(med);
-    setIsEditing(true);
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleDelete = async (id: string) => {
+    if (confirm('Excluir este medicamento?')) {
+      await deleteDoc(doc(db, 'medications', id));
+      load();
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-black text-teal-900 uppercase">
-          {isEditing ? 'Editando Medicamento' : 'Medicamentos Padrão'}
-        </h1>
-        <Button onClick={isEditing ? resetForm : () => setShowForm(!showForm)} variant={isEditing ? 'secondary' : 'default'}>
-          {showForm || isEditing ? <X size={20} /> : <Plus size={20} />} 
-          {isEditing ? 'CANCELAR EDIÇÃO' : (showForm ? 'CANCELAR' : 'CADASTRAR MEDICAMENTO')}
-        </Button>
-      </div>
+      <h2 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+        <Pill className="h-8 w-8 text-primary" /> Cadastro de Medicamentos
+      </h2>
 
-      {showForm && (
-        <Card className="border-2 border-teal-500 animate-in fade-in slide-in-from-top-4">
-          <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="NOME DO MEDICAMENTO" value={newMed.nome} onChange={e => setNewMed({...newMed, nome: e.target.value.toUpperCase()})} required />
-            
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-teal-700 mb-1 ml-1 uppercase">Apresentação</label>
-              <select 
-                className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-teal-500 outline-none uppercase font-semibold"
-                value={newMed.apresentacao}
-                onChange={e => setNewMed({...newMed, apresentacao: e.target.value.toLowerCase()})}
+      <form onSubmit={handleSubmit} className="card space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <input 
+            required 
+            placeholder="Nome" 
+            value={form.nome} 
+            onChange={e => setForm({ ...form, nome: e.target.value })}
+            className="input-field" 
+          />
+          <input 
+            required 
+            placeholder="Dosagem (ex: 500mg)" 
+            value={form.dosagem} 
+            onChange={e => setForm({ ...form, dosagem: e.target.value })}
+            className="input-field" 
+          />
+          <select 
+            value={form.apresentacao} 
+            onChange={e => setForm({ ...form, apresentacao: e.target.value as any })}
+            className="input-field"
+          >
+            <option value="comprimido">Comprimido</option>
+            <option value="capsula">Cápsula</option>
+            <option value="gota">Gota</option>
+            <option value="liquido">Líquido (copo medidor)</option>
+            <option value="xarope">Xarope</option>
+            <option value="spray">Spray</option>
+            <option value="pomada">Pomada</option>
+          </select>
+          <input 
+            placeholder="Para que serve" 
+            value={form.indicacao} 
+            onChange={e => setForm({ ...form, indicacao: e.target.value })}
+            className="input-field" 
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-slate-700 mb-3">
+            Sintomas que este medicamento trata:
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {SYMPTOMS_DATA.map(symptom => (
+              <button
+                key={symptom.id}
+                type="button"
+                onClick={() => toggleSymptom(symptom.id)}
+                className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                  form.symptomIds.includes(symptom.id)
+                    ? 'border-primary bg-teal-50 shadow-md'
+                    : 'border-slate-200 hover:border-teal-300'
+                }`}
               >
-                {opcoesApresentacao.map(op => (
-                  <option key={op} value={op}>{op.toUpperCase()}</option>
-                ))}
-              </select>
-            </div>
+                <img 
+                  src={`/img/n/f/${symptom.file}`} 
+                  alt={symptom.name}
+                  className="w-12 h-12 object-contain"
+                />
+                <span className="text-xs font-semibold text-center">{symptom.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-            <div className="md:col-span-2">
-              <Input label="INDICAÇÃO" value={newMed.indicacao} onChange={e => setNewMed({...newMed, indicacao: e.target.value.toUpperCase()})} />
-            </div>
-            
-            <div className="md:col-span-2 mt-2">
-              <Button type="submit" fullWidth>
-                {isEditing ? 'SALVAR ALTERAÇÕES' : 'SALVAR MEDICAMENTO'}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {medicamentos.map((med) => (
-          <Card key={med.id} className="border-l-8 border-teal-600 relative group">
+        <div className="flex gap-3">
+          <button type="submit" className="btn-primary">
+            {editingId ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+            {editingId ? 'Atualizar' : 'Cadastrar'}
+          </button>
+          {editingId && (
             <button 
-              onClick={() => handleEdit(med)}
-              className="absolute top-2 right-2 p-2 bg-slate-100 text-slate-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-teal-600 hover:text-white"
+              type="button" 
+              onClick={() => {
+                setEditingId(null);
+                setForm({ 
+                  nome: '', 
+                  dosagem: '', 
+                  apresentacao: 'comprimido',
+                  indicacao: '',
+                  symptomIds: []
+                });
+              }}
+              className="btn-secondary"
             >
-              <Edit2 size={14} />
+              Cancelar
             </button>
-            <div className="flex items-start gap-4">
-              <div className="bg-teal-50 p-3 rounded-xl">
-                <MedIcon apresentacao={med.apresentacao || ''} size={24} className="text-teal-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-black text-teal-900 uppercase leading-none mb-2">{med.nome || "SEM NOME"}</h3>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black text-teal-700 bg-teal-100 w-fit px-2 py-0.5 rounded uppercase">
-                    {med.apresentacao || "NÃO DEFINIDA"}
-                  </p>
-                  {med.indicacao && (
-                    <p className="text-[10px] font-bold text-slate-500 flex items-center gap-1 uppercase leading-tight">
-                      <Info size={12} className="text-teal-500 shrink-0" /> 
-                      {med.indicacao}
-                    </p>
-                  )}
+          )}
+        </div>
+      </form>
+
+      <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
+        {meds.map(m => (
+          <div key={m.id} className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-slate-50">
+            <div className="flex-1">
+              <p className="font-bold text-slate-800 text-lg">{m.nome} - {m.dosagem}</p>
+              <p className="text-sm text-slate-500 capitalize">{m.apresentacao} {m.indicacao && `• ${m.indicacao}`}</p>
+              {m.symptomIds && m.symptomIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {m.symptomIds.map(sid => {
+                    const sym = SYMPTOMS_DATA.find(s => s.id === sid);
+                    return sym ? (
+                      <span key={sid} className="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded-full">
+                        {sym.name}
+                      </span>
+                    ) : null;
+                  })}
                 </div>
-              </div>
+              )}
             </div>
-          </Card>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleEdit(m)} 
+                className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg"
+              >
+                <Edit className="h-5 w-5" />
+              </button>
+              <button 
+                onClick={() => handleDelete(m.id)} 
+                className="text-red-500 hover:bg-red-50 p-2 rounded-lg"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
         ))}
       </div>
     </div>
