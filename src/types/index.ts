@@ -1,94 +1,113 @@
-export interface Patient {
-  id: string;
-  nome: string;
-  cpf?: string;
-  dataNascimento?: string;
+// COLEÇÃO: instituicoes (IDs automáticos do Firebase)
+export interface Instituicao {
+  id?: string;
+  nome: string; // ex: "INCA - HCIII"
+  descricao: string; // ex: "INCA - HOSPITAL DO CÂNCER III"
+  
+  // CAMPOS DE ENDEREÇO PLANOS (como está no Firestore real)
+  rua: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  uf: string; // ex: "RJ"
+  cep: string; // ex: "20560-120"
+  pais?: string; // ex: "Brasil"
+  
+  telefone1: string; // ex: "(21) 3207-3700"
+  telefone2?: string;
+  tipo: string; // ex: "Hospital"
   email?: string;
-  telefone?: string;
-  endereco?: string;
-  observacoes?: string;
+  website?: string;
 }
 
-export interface Symptom {
-  id: string;
-  name: string;
-  file: string;
-}
-
-export interface Medication {
-  id: string;
-  nome: string;
-  dosagem: string;
-  apresentacao: 'comprimido' | 'capsula' | 'gota' | 'liquido' | 'xarope' | 'spray' | 'pomada';
-  indicacao?: string;
-  symptomIds?: string[];
-  imageUrl?: string;
-}
-
-export interface MealIcon {
-  hour: string;
-  icon: string;
-  label: string;
-}
-
-export interface PrescriptionItem {
-  medicationId: string;
-  nome: string;
-  apresentacao: string;
-  dosagem: string;
-  doseQuantity: number;
-  frequency: number;
-  startHour: string;
-  calculatedHours: string[];
-  mealIcons: MealIcon[];
-  indicacao?: string;
-  symptoms: Symptom[];
-  duracao?: string;
-  observacoes?: string;
-}
-
-export interface Prescription {
-  id: string;
-  patientId: string;
-  patientName: string;
-  medications: PrescriptionItem[];
-  profissionalId?: string;
-  profissionalNome?: string;
-  instituicaoId?: string;
-  instituicaoNome?: string;
-  createdAt: any;
-  updatedAt?: any;
-  status?: 'ativa' | 'cancelada' | 'concluida';
-}
-
-export interface Professional {
-  id: string;
-  nome: string;
-  cargo: string;
+// COLEÇÃO: profissionais (IDs manuais em UPPERCASE: ANA_LIMA, RICARDO_DE_RODRIGUES)
+export interface Profissional {
+  id?: string; // ID manual em uppercase
+  nome: string; // ex: "ANA BEATRIZ LIMA"
+  cargo: string; // ex: "MÉDICO(A)" ou "FARMACÊUTICO(A)"
   cargoOutro?: string;
+  numeroRegistro: string; // ex: "35598"
+  orgao: string; // ex: "CRF" ou "CRM"
+  uf: string; // ex: "RJ"
   email?: string;
   especialidade?: string;
-  numeroRegistro?: string;
-  orgao?: string;
-  uf?: string;
   local?: string;
   observacoes?: string;
 }
 
-export interface Institution {
-  id: string;
+// COLEÇÃO: receitas (IDs automáticos)
+export interface ItemMedicamento {
+  nomeMedicamento: string;
+  principio?: string;
+  dose: string; // ex: "ESOMEPRAZOL 20 MG PARA PROTEGER O ESTÔMAGO"
+  horarios: string[]; // ex: ["00:00", "08:00", "16:00"]
+  intervalo: number; // ex: 8 (horas)
+  indicacao: string; // ex: "PARA PROTEGER O ESTÔMAGO"
+  medicamentold?: string;
+  horaInicio?: string; // ex: "08:00"
+}
+
+export interface MedicamentoPosologia {
+  texto_original_da_posologia: string;
   nome: string;
-  descricao?: string;
-  tipo?: string;
-  endereco?: {
-    rua?: string;
-    numero?: string;
-    bairro?: string;
-    cidade?: string;
-    uf?: string;
-    cep?: string;
-    pais?: string;
-  };
-  telefone1?: string;
-  telefone2?: string;
+  indicacao: string;
+}
+
+export interface Receita {
+  id?: string;
+  nomePaciente: string; // ex: "MARLI FERREIRA"
+  prontuario: string; // ex: "5208248"
+  pacienteId?: string;
+  profissionalId?: string;
+  medico?: string;
+  medico_id?: string;
+  farmaceutico?: string;
+  farmaceutico_id?: string;
+  instituicaoId?: string;
+  nomeInstituicao?: string;
+  dataEmissao?: string; // ex: "2026-04-30"
+  data_nasc?: string;
+  data_consulta?: string;
+  data_criacao?: string;
+  data_atualizacao?: string;
+  criado_em?: string;
+  setor_id?: string;
+  itens: ItemMedicamento[]; // array complexo
+  medicamentos_fixos: MedicamentoPosologia[]; // uso contínuo
+  medicamentos_sos: MedicamentoPosologia[]; // SOS
+}
+
+// COLEÇÃO: pacientes
+export interface Paciente {
+  id?: string;
+  nome: string;
+  dataNascimento: string;
+  matricula: string; // prontuário
+  alergias?: string;
+  telefone?: string;
+  endereco?: string;
+  historico?: string;
+  instituicaoId?: string;
+  profissionalId?: string;
+}
+
+// COLEÇÃO: medicamentos_padrao
+export interface Medicamento {
+  id?: string;
+  nomeComercial: string;
+  principioAtivo: string;
+  apresentacao: string;
+  fabricante: string;
+}
+
+// UTILITÁRIOS
+export type AcaoTomada = 'tomado' | 'nao_tomado' | 'pulado';
+
+export interface Tomada {
+  id?: string;
+  prescricaoId: string;
+  horario: string;
+  status: AcaoTomada;
+  registradoEm: string;
 }
