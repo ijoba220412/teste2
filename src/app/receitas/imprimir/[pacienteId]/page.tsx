@@ -61,7 +61,7 @@ function getIndicationIcon(text: string | undefined) {
   if (lower.includes('cancer') || lower.includes('tumor')) return '/img/n/f/cancro.png';
   if (lower.includes('coração')) return '/img/n/f/coracao.png';
   if (lower.includes('pele')) return '/img/n/f/pele.png';
-  if (lower.includes('estomago') || lower.includes('jejum')) return '/img/n/f/gastrite.png'; // Verifique se existe, senão use generico
+  if (lower.includes('estomago') || lower.includes('jejum')) return '/img/n/f/gastrite.png';
   // Padrão genérico de "medicamento"
   return '/img/n/f/saude.png'; 
 }
@@ -183,7 +183,7 @@ export default function ImprimirReceita() {
                         <div className="h-24 w-full flex items-center justify-center bg-white rounded-xl mb-2 border border-rose-100 overflow-hidden">
                            {/* Tenta carregar a imagem, se falhar mostra ícone */}
                            <img 
-                             src={indicationIcon} 
+                             src={indicationIcon ?? undefined} // ✅ CORREÇÃO: null -> undefined
                              alt={med.indicacao}
                              className="h-16 w-auto object-contain"
                              onError={(e) => (e.currentTarget.style.display = 'none')} 
