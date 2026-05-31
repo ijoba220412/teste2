@@ -4,416 +4,249 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Receita, Instituicao, Profissional } from '@/types';
-import { MEDICATION_ICONS } from '@/utils/generateHorarios';
-import { Printer, ArrowLeft, AlertCircle, Building2, User, Stethoscope } from 'lucide-react';
+import { Receita } from '@/types';
+import { 
+  Printer, 
+  ArrowLeft, 
+  Sun, 
+  Coffee, 
+  Utensils, 
+  Sunset, 
+  Clock, 
+  Moon 
+} from 'lucide-react';
+
+// --- CONFIGURAÇÃO DOS HORÁRIOS VISUAIS ---
+const TIME_SLOTS = [
+  { label: 'AO ACORDAR', time: '06:00', icon: 'WAKE' },
+  { label: 'CAFÉ DA MANHÃ', time: '08:00', icon: 'BREAKFAST' },
+  { label: 'ALMOÇO', time: '12:00', icon: 'LUNCH' },
+  { label: 'À TARDE', time: '15:00', icon: 'AFTERNOON' },
+  { label: 'FIM DA TARDE', time: '18:00', icon: 'LATE_AFTERNOON' },
+  { label: 'JANTAR', time: '20:00', icon: 'DINNER' },
+  { label: 'AO DEITAR', time: '22:00', icon: 'BED' },
+];
+
+// --- FUNÇÕES AUXILIARES ---
+function getIconForTime(label: string) {
+  switch(label) {
+    case 'AO ACORDAR': return <Sun size={16} />;
+    case 'CAFÉ DA MANHÃ': return <Coffee size={16} />;
+    case 'ALMOÇO': return <Utensils size={16} />;
+    case 'À TARDE': return <Sun size={16} />;
+    case 'FIM DA TARDE': return <Sunset size={16} />;
+    case 'JANTAR': return <Utensils size={16} />;
+    case 'AO DEITAR': return <Moon size={16} />;
+    default: return <Clock size={16} />;
+  }
+}
+
+function getTimeColumn(timeStr: string) {
+  if (!timeStr) return null;
+  const hour = parseInt(timeStr.split(':')[0]);
+  if (hour >= 6 && hour < 7) return 'AO ACORDAR';
+  if (hour >= 7 && hour < 11) return 'CAFÉ DA MANHÃ';
+  if (hour >= 11 && hour < 14) return 'ALMOÇO';
+  if (hour >= 14 && hour < 17) return 'À TARDE';
+  if (hour >= 17 && hour < 19) return 'FIM DA TARDE';
+  if (hour >= 19 && hour < 21) return 'JANTAR';
+  return 'AO DEITAR';
+}
+
+function getIndicationIcon(text: string | undefined) {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  if (lower.includes('dor')) return '/img/n/f/dor.png';
+  if (lower.includes('cabeça')) return '/img/n/f/dordecabeca.png';
+  if (lower.includes('cancer') || lower.includes('tumor')) return '/img/n/f/cancro.png';
+  if (lower.includes('coração')) return '/img/n/f/coracao.png';
+  if (lower.includes('pele')) return '/img/n/f/pele.png';
+  if (lower.includes('estomago') || lower.includes('jejum')) return '/img/n/f/gastrite.png'; // Verifique se existe, senão use generico
+  // Padrão genérico de "medicamento"
+  return '/img/n/f/saude.png'; 
+}
 
 export default function ImprimirReceita() {
   const params = useParams();
-  // O parâmetro da URL é [pacienteId] mas na verdade representa o ID da receita
-  const receitaId = params?.pacienteId as string;
   const router = useRouter();
+  const receitaId = params?.pacienteId as string;
   
-  const [receita, setReceita] = useState<(Receita & { id: string }) | null>(null);
-  const [instituicao, setInstituicao] = useState<(Instituicao & { id: string }) | null>(null);
+  const [receita, setReceita] = useState<Receita | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Função auxiliar para formatar datas em DD/MM/AAAA
-  const formatDate = (dateStr: string | undefined | null): string => {
-    if (!dateStr) return '';
-    
-    // Se já estiver em DD/MM/AAAA
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
-    
-    // Se estiver em YYYY-MM-DD (ISO)
-    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-      const [year, month, day] = dateStr.substring(0, 10).split('-');
-      return `${day}/${month}/${year}`;
-    }
-    
-    // Tenta parsear como Date
-    try {
-      const date = new Date(dateStr);
-      if (!isNaN(date.getTime())) {
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
-      }
-    } catch (e) {}
-    
-    return dateStr;
-  };
 
   useEffect(() => {
     (async () => {
       if (receitaId) {
-        try {
-          const snap = await getDoc(doc(db, 'receitas', receitaId));
-          if (snap.exists()) {
-            const data = { id: snap.id, ...snap.data() } as Receita & { id: string };
-            setReceita(data);
-            
-            // Busca dados da instituição se houver ID
-            if (data.instituicaoId) {
-              const instSnap = await getDoc(doc(db, 'instituicoes', data.instituicaoId));
-              if (instSnap.exists()) {
-                setInstituicao({ id: instSnap.id, ...instSnap.data() } as Instituicao & { id: string });
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Erro ao carregar receita:', error);
+        const snap = await getDoc(doc(db, 'receitas', receitaId));
+        if (snap.exists()) {
+          setReceita({ id: snap.id, ...snap.data() } as Receita);
         }
       }
       setLoading(false);
     })();
   }, [receitaId]);
 
-  const print = () => window.print();
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-teal-700 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-semibold uppercase text-lg">CARREGANDO RECEITA...</p>
-        </div>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-700"></div>
       </div>
     );
   }
 
   if (!receita) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-2xl shadow-lg p-8 max-w-md">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-800 text-xl font-bold uppercase mb-4">RECEITA NÃO ENCONTRADA</p>
-          <button 
-            onClick={() => router.push('/dashboard')}
-            className="bg-teal-700 hover:bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold uppercase transition-colors shadow-lg"
-          >
-            <div className="flex items-center gap-2">
-              <ArrowLeft className="w-5 h-5" /> VOLTAR AO INÍCIO
-            </div>
-          </button>
-        </div>
+      <div className="min-h-screen bg-slate-100 p-8 text-center">
+        <p>Receita não encontrada.</p>
+        <button onClick={() => router.push('/dashboard')} className="mt-4 text-teal-700 underline">Voltar</button>
       </div>
     );
   }
 
-  // Separar medicamentos para exibição
-  const medicamentos_fixos = receita.medicamentos_fixos || [];
-  const medicamentos_sos = receita.medicamentos_sos || [];
-  const temMedicamentos = medicamentos_fixos.length > 0 || medicamentos_sos.length > 0;
-
-  // Determina a instituição a exibir (preferência: buscada pelo ID, depois o nome gravado na receita)
-  const nomeInstituicao = instituicao?.nome || receita.nomeInstituicao || 'INSTITUIÇÃO';
-  const descricaoInstituicao = instituicao?.descricao || '';
-  const enderecoInstituicao = instituicao ? (
-    `${instituicao.rua || ''}, ${instituicao.numero || ''}${instituicao.complemento ? ` - ${instituicao.complemento}` : ''} - ${instituicao.bairro || ''}, ${instituicao.cidade || ''}/${instituicao.uf || ''} - CEP: ${instituicao.cep || ''}`
-  ) : '';
-  const telefoneInstituicao = instituicao?.telefone1 || '';
+  // Mesclar fixos e SOS para exibição visual
+  const allItems = [
+    ...(receita.medicamentos_fixos || []),
+    ...(receita.medicamentos_sos || [])
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8 print:bg-white print:p-0">
+    <div className="min-h-screen bg-slate-100 pb-20 print:bg-white print:pb-0">
       
-      {/* BOTÕES DE AÇÃO (não aparecem na impressão) */}
-      <div className="max-w-4xl mx-auto mb-6 flex flex-wrap gap-3 print:hidden">
-        <button 
-          onClick={() => router.push('/dashboard')} 
-          className="flex items-center gap-2 px-5 py-3 border-2 border-teal-700 text-teal-700 rounded-xl hover:bg-teal-50 transition-colors uppercase font-semibold"
-        >
-          <ArrowLeft className="w-5 h-5" /> VOLTAR
+      {/* BARRA DE NAVEGAÇÃO (Oculta na impressão) */}
+      <div className="bg-white shadow-sm p-4 flex justify-between items-center print:hidden">
+        <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-slate-600 font-semibold">
+          <ArrowLeft size={20} /> Voltar
         </button>
         <button 
-          onClick={print} 
-          className="flex items-center gap-2 bg-teal-700 hover:bg-teal-600 text-white px-6 py-3 rounded-xl transition-colors uppercase font-semibold shadow-lg"
+          onClick={() => window.print()}
+          className="bg-teal-700 hover:bg-teal-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition"
         >
-          <Printer className="w-5 h-5" /> IMPRIMIR / PDF
+          <Printer size={20} /> IMPRIMIR
         </button>
       </div>
 
-      {/* RECEITA - ÁREA IMPRIMÍVEL */}
-      <div 
-        id="printable-receipt" 
-        className="max-w-4xl mx-auto bg-white shadow-2xl print:shadow-none print:max-w-none"
-        style={{ 
-          fontFamily: 'Arial, sans-serif',
-          padding: '40px',
-          printColorAdjust: 'exact',
-          WebkitPrintColorAdjust: 'exact'
-        }}
-      >
+      <div className="max-w-5xl mx-auto mt-6 bg-white shadow-xl rounded-3xl overflow-hidden print:shadow-none print:max-w-none print:rounded-none">
         
-        {/* ========== CABEÇALHO DA INSTITUIÇÃO ========== */}
-        <header className="text-center border-b-4 border-teal-700 pb-6 mb-6">
-          <div className="flex justify-center mb-2">
-            <Building2 className="w-12 h-12 text-teal-700" />
-          </div>
-          <h1 className="text-3xl font-extrabold text-teal-800 uppercase tracking-wide">
-            {nomeInstituicao}
-          </h1>
-          {descricaoInstituicao && (
-            <p className="text-base text-gray-700 mt-1 uppercase font-semibold">
-              {descricaoInstituicao}
-            </p>
-          )}
-          {enderecoInstituicao && (
-            <p className="text-xs text-gray-600 mt-2 uppercase">
-              {enderecoInstituicao}
-            </p>
-          )}
-          {telefoneInstituicao && (
-            <p className="text-xs text-gray-600 uppercase">
-              TEL: {telefoneInstituicao}
-            </p>
-          )}
-        </header>
-
-        {/* ========== TÍTULO DA RECEITA ========== */}
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-widest">
-            RECEITA MÉDICA FACILITADA
-          </h2>
-          <div className="w-32 h-1 bg-teal-700 mx-auto mt-2"></div>
+        {/* HEADER */}
+        <div className="bg-slate-900 text-white p-6 text-center print:bg-white print:text-black print:border-b-2 print:border-black">
+          <h1 className="text-2xl font-black uppercase tracking-wider">Painel Visual de Medicamentos</h1>
+          <p className="text-slate-400 text-sm mt-1 print:text-black">
+            PACIENTE: <span className="font-bold text-white print:text-black">{receita.nomePaciente}</span>
+          </p>
         </div>
 
-        {/* ========== DADOS DO PACIENTE ========== */}
-        <div className="bg-teal-50 border-2 border-teal-200 rounded-xl p-4 mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <User className="w-5 h-5 text-teal-800" />
-            <h3 className="text-sm font-bold text-teal-900 uppercase">DADOS DO PACIENTE</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-            <div>
-              <span className="font-bold text-gray-700 uppercase block text-xs">PACIENTE:</span>
-              <span className="font-semibold text-gray-900 uppercase">{receita.nomePaciente}</span>
-            </div>
-            <div>
-              <span className="font-bold text-gray-700 uppercase block text-xs">PRONTUÁRIO:</span>
-              <span className="font-semibold text-gray-900 uppercase">{receita.prontuario}</span>
-            </div>
-            <div>
-              <span className="font-bold text-gray-700 uppercase block text-xs">DATA DE NASCIMENTO:</span>
-              <span className="font-semibold text-gray-900 uppercase">
-                {formatDate(receita.data_nasc)}
-              </span>
-            </div>
-          </div>
-          
-          {/* ALERGIAS - Destaque vermelho se houver */}
-          <div className="mt-3 pt-3 border-t border-teal-200">
-            <span className="font-bold text-gray-700 uppercase block text-xs mb-1">ALERGIAS:</span>
-            {receita.alergias || receita.pacienteAllergies ? (
-              <div className="flex items-center gap-2 bg-red-100 border border-red-300 rounded-lg px-3 py-2">
-                <AlertCircle className="w-4 h-4 text-red-700 flex-shrink-0" />
-                <span className="font-bold text-red-800 uppercase text-sm">
-                  {(receita.alergias || receita.pacienteAllergies || '').toUpperCase()}
-                </span>
+        {/* LINHA DO TEMPO (TOP BAR) */}
+        <div className="bg-slate-900 text-white px-4 py-3 flex items-center gap-2 overflow-x-auto print:bg-slate-100 print:text-black print:border-b-2 print:border-black">
+          <span className="font-bold text-sm w-32 shrink-0 uppercase print:w-48">MEDICAMENTO E MOTIVO</span>
+          <div className="flex-1 flex justify-between min-w-[600px]">
+            {TIME_SLOTS.map((slot, i) => (
+              <div key={i} className="flex flex-col items-center gap-1 text-xs text-center w-14">
+                <div className="opacity-80">{getIconForTime(slot.label)}</div>
+                <span className="font-bold uppercase leading-tight">{slot.label.split(' ')[0]}</span>
+                <span className="opacity-60">{slot.time}</span>
               </div>
-            ) : (
-              <span className="font-semibold text-gray-700 uppercase">NEGA ALERGIAS</span>
-            )}
+            ))}
           </div>
         </div>
 
-        {/* ========== MÉDICO PRESCRITOR ========== */}
-        {(receita.medico || receita.medico_id) && (
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Stethoscope className="w-5 h-5 text-teal-700" />
-              <h3 className="text-sm font-bold text-gray-800 uppercase">MÉDICO PRESCRITOR</h3>
-            </div>
-            <p className="font-bold text-gray-900 uppercase">
-              DR(A). {receita.medico}
-              {receita.medico_id && (
-                <span className="text-sm text-gray-600 font-normal ml-2">
-                  — {receita.medico_id}
-                </span>
-              )}
-            </p>
-          </div>
-        )}
-
-        {/* ========== CORPO DA RECEITA ========== */}
-        <div className="space-y-6">
-          
-          {/* SEÇÃO: USO CONTÍNUO */}
-          {medicamentos_fixos.length > 0 && (
-            <div>
-              <div className="flex items-center gap-3 mb-4 border-b-2 border-teal-700 pb-2">
-                <div className="w-2 h-8 bg-teal-700"></div>
-                <h3 className="text-lg font-extrabold text-teal-800 uppercase tracking-wide">
-                  MEDICAMENTOS DE USO CONTÍNUO
-                </h3>
-              </div>
-              
-              <div className="space-y-4">
-                {medicamentos_fixos.map((med: any, idx: number) => (
-                  <div 
-                    key={`fixo-${idx}`} 
-                    className="border-2 border-gray-200 rounded-xl p-4 bg-white"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-                      <h4 className="text-xl font-bold text-gray-900 uppercase flex-1">
-                        {med.nome?.toUpperCase() || 'MEDICAMENTO'}
-                      </h4>
-                      <span className="bg-teal-700 text-white px-3 py-1 rounded-full text-xs font-bold uppercase whitespace-nowrap">
-                        CONTÍNUO
-                      </span>
-                    </div>
-                    
-                    <p className="text-base text-gray-800 uppercase mb-3 font-semibold">
-                      {med.texto_original_da_posologia?.toUpperCase() || ''}
-                    </p>
-                    
-                    {med.indicacao && (
-                      <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
-                        <p className="text-xs font-bold text-blue-900 uppercase mb-1">PARA QUE SERVE:</p>
-                        <p className="text-sm text-blue-800 uppercase">{med.indicacao.toUpperCase()}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+        {/* LISTA DE MEDICAMENTOS */}
+        <div className="p-6 space-y-8">
+          {allItems.length === 0 && (
+            <p className="text-center text-gray-500 py-10">Nenhum medicamento cadastrado.</p>
           )}
 
-          {/* SEÇÃO: SOS */}
-          {medicamentos_sos.length > 0 && (
-            <div>
-              <div className="flex items-center gap-3 mb-4 border-b-2 border-amber-600 pb-2">
-                <div className="w-2 h-8 bg-amber-600"></div>
-                <h3 className="text-lg font-extrabold text-amber-800 uppercase tracking-wide">
-                  MEDICAMENTOS SOS (SE NECESSÁRIO)
-                </h3>
-              </div>
-              
-              <div className="space-y-4">
-                {medicamentos_sos.map((med: any, idx: number) => (
-                  <div 
-                    key={`sos-${idx}`} 
-                    className="border-2 border-amber-200 rounded-xl p-4 bg-amber-50"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-                      <h4 className="text-xl font-bold text-gray-900 uppercase flex-1">
-                        {med.nome?.toUpperCase() || 'MEDICAMENTO'}
-                      </h4>
-                      <span className="bg-amber-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase whitespace-nowrap">
-                        SOS
-                      </span>
-                    </div>
-                    
-                    <p className="text-base text-gray-800 uppercase mb-3 font-semibold">
-                      {med.texto_original_da_posologia?.toUpperCase() || 'USO SOB DEMANDA'}
-                    </p>
-                    
-                    {med.indicacao && (
-                      <div className="bg-white border-l-4 border-amber-500 p-3 rounded">
-                        <p className="text-xs font-bold text-amber-900 uppercase mb-1">INDICAÇÃO:</p>
-                        <p className="text-sm text-gray-800 uppercase">{med.indicacao.toUpperCase()}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* AVISO SE NÃO HOUVER MEDICAMENTOS */}
-          {!temMedicamentos && (
-            <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl">
-              <p className="text-gray-500 font-semibold uppercase">
-                NENHUM MEDICAMENTO PRESCRITO NESTA RECEITA
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* ========== OBSERVAÇÕES ========== */}
-        {receita.observacoes && (
-          <div className="mt-6 bg-yellow-50 border border-yellow-300 rounded-xl p-4">
-            <p className="text-xs font-bold text-yellow-900 uppercase mb-1">OBSERVAÇÕES:</p>
-            <p className="text-sm text-gray-800 uppercase">{String(receita.observacoes).toUpperCase()}</p>
-          </div>
-        )}
-
-        {/* ========== RODAPÉ - ASSINATURAS ========== */}
-        <footer className="mt-12 pt-6 border-t-2 border-gray-300">
-          
-          {/* Data de emissão */}
-          <div className="text-center mb-8">
-            <p className="text-sm text-gray-700 uppercase">
-              <span className="font-bold">DATA DE EMISSÃO:</span>{' '}
-              {formatDate(receita.dataEmissao) || formatDate(receita.data_criacao?.toString()) || formatDate(new Date().toISOString())}
-            </p>
-          </div>
-          
-          {/* Linhas de assinatura */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
-            <div className="text-center">
-              <div className="border-t-2 border-gray-800 pt-2 mx-4">
-                <p className="font-bold text-gray-900 uppercase text-sm">
-                  {receita.medico || 'MÉDICO(A) RESPONSÁVEL'}
-                </p>
-                <p className="text-xs text-gray-600 uppercase">
-                  {receita.medico_id || 'CRM/UF'}
-                </p>
-              </div>
-            </div>
+          {allItems.map((med: any, index) => {
+            const indicationIcon = getIndicationIcon(med.indicacao);
+            const dose = med.texto_original_da_posologia?.split(' ')[0] || '1'; // Tenta pegar "500MG" ou "1"
             
-            <div className="text-center">
-              <div className="border-t-2 border-gray-800 pt-2 mx-4">
-                <p className="font-bold text-gray-900 uppercase text-sm">
-                  {receita.farmaceutico || 'FARMACÊUTICO(A) RESPONSÁVEL'}
-                </p>
-                <p className="text-xs text-gray-600 uppercase">
-                  {receita.farmaceutico_id || 'CRF/UF'}
-                </p>
+            return (
+              <div key={index} className="relative group">
+                {/* Divisor entre medicamentos */}
+                <div className="border-t-2 border-dashed border-slate-200 mb-6 first:mt-0"></div>
+
+                {/* Card Principal */}
+                <div className="flex gap-6">
+                  
+                  {/* Coluna Esquerda: Info do Remédio */}
+                  <div className="w-32 md:w-48 shrink-0 space-y-3">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 uppercase leading-none">
+                      {med.nome || 'Medicamento'}
+                    </h2>
+                    <div className="flex items-center gap-2 text-slate-500 font-bold">
+                      <span className="bg-teal-100 text-teal-800 p-1 rounded-md">💊</span>
+                      <span>{dose.toUpperCase()}</span>
+                    </div>
+                    
+                    {/* Cartão de Motivo Visual */}
+                    {med.indicacao && (
+                      <div className="mt-4 bg-rose-50 border-2 border-rose-200 rounded-2xl p-3 text-center shadow-sm">
+                        <div className="h-24 w-full flex items-center justify-center bg-white rounded-xl mb-2 border border-rose-100 overflow-hidden">
+                           {/* Tenta carregar a imagem, se falhar mostra ícone */}
+                           <img 
+                             src={indicationIcon} 
+                             alt={med.indicacao}
+                             className="h-16 w-auto object-contain"
+                             onError={(e) => (e.currentTarget.style.display = 'none')} 
+                           />
+                           {/* Fallback se a imagem não carregar */}
+                           {!indicationIcon && <span className="text-4xl">❓</span>}
+                        </div>
+                        <p className="font-bold text-rose-700 text-sm uppercase leading-none">{med.indicacao}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Coluna Direita: Grade de Horários */}
+                  <div className="flex-1 grid grid-cols-7 gap-2 relative">
+                    {/* Linhas guia verticais */}
+                    <div className="absolute inset-0 flex pointer-events-none">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="flex-1 border-l border-slate-100 first:border-0"></div>
+                      ))}
+                    </div>
+
+                    {TIME_SLOTS.map((slot, i) => {
+                      const timeCol = getTimeColumn(slot.time);
+                      const medTimeCol = med.horarios?.some((h: string) => getTimeColumn(h) === slot.label) 
+                                        ? true 
+                                        : (slot.label === 'AO ACORDAR' && (med.horarios || []).includes('06:00')); // Case específico para 6h
+
+                      // Verifica se o horário do slot bate com algum horário prescrito
+                      const isActive = med.horarios?.some((h: string) => {
+                        const hCol = getTimeColumn(h);
+                        return hCol === slot.label;
+                      });
+
+                      return (
+                        <div key={i} className="h-full flex flex-col items-center justify-center z-10 py-2">
+                          {isActive ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="bg-teal-600 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold shadow-lg animate-pulse print:animate-none">
+                                {dose}
+                              </div>
+                              <span className="text-[10px] font-bold text-teal-700 uppercase bg-teal-50 px-1 rounded">
+                                {slot.time}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="w-2 h-2 rounded-full bg-slate-200"></div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })}
+        </div>
 
-          {/* Rodapé informativo */}
-          <div className="mt-10 pt-4 border-t border-gray-200 text-center">
-            <p className="text-xs text-gray-600 uppercase font-semibold">
-              RECEITA FACILITADA — SEGURANÇA E CLAREZA PARA TODOS
-            </p>
-            <p className="text-xs text-gray-500 uppercase mt-1">
-              EM CASO DE DÚVIDAS, PROCURE SEU FARMACÊUTICO OU MÉDICO.
-            </p>
-            {nomeInstituicao && (
-              <p className="text-xs text-gray-500 uppercase mt-2">
-                {nomeInstituicao.toUpperCase()}
-                {enderecoInstituicao && ` • ${enderecoInstituicao.toUpperCase()}`}
-              </p>
-            )}
-          </div>
-        </footer>
-
+        {/* RODAPÉ */}
+        <div className="bg-slate-50 p-4 text-center text-xs text-slate-400 border-t">
+          Gerado por Receita Facilitada • {new Date().toLocaleDateString('pt-BR')}
+        </div>
       </div>
-
-      {/* ESTILOS DE IMPRESSÃO */}
-      <style jsx>{`
-        @media print {
-          body {
-            background: white !important;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          #printable-receipt {
-            box-shadow: none !important;
-            max-width: 100% !important;
-            page-break-inside: avoid;
-          }
-          @page {
-            size: A4;
-            margin: 15mm;
-          }
-        }
-      `}</style>
     </div>
   );
 }
