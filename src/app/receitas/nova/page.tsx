@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Medicamento, Paciente, Profissional, Instituicao } from '@/types';
-import { SYMPTOMS_DATA } from '@/lib/symptoms';
 import { calculateHours, generateMealIcons, MEDICATION_ICONS, MealIcon } from '@/utils/generateHorarios';
 import { Plus, Trash2, Save, FileText, Activity, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -22,7 +21,6 @@ interface ReceitaItem {
   calculatedHours: string[];
   mealIcons: MealIcon[];
   indicacao: string;
-  symptoms: Array<{ id: string; name: string; file: string }>;
   tipo: 'continuo' | 'sos';
 }
 
@@ -44,7 +42,6 @@ export default function NovaReceita() {
   
   // Itens da receita
   const [items, setItems] = useState<ReceitaItem[]>([]);
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -74,14 +71,6 @@ export default function NovaReceita() {
     })();
   }, []);
 
-  const toggleSymptom = (symptomId: string) => {
-    setSelectedSymptoms(prev =>
-      prev.includes(symptomId) 
-        ? prev.filter(id => id !== symptomId) 
-        : [...prev, symptomId]
-    );
-  };
-
   const addMedication = () => {
     if (medicamentos.length === 0) {
       alert('CADASTRE UM MEDICAMENTO PRIMEIRO');
@@ -92,7 +81,6 @@ export default function NovaReceita() {
     const startHour = '06:00';
     const frequency = 2;
     const calc = calculateHours(startHour, frequency);
-    const symptoms = SYMPTOMS_DATA.filter(s => selectedSymptoms.includes(s.id));
     
     const newItem: ReceitaItem = {
       tempId: `temp_${Date.now()}_${Math.random()}`,
@@ -105,13 +93,12 @@ export default function NovaReceita() {
       startHour,
       calculatedHours: calc,
       mealIcons: generateMealIcons(calc),
-      indicacao: med.indicacao || '',
-      symptoms,
+      // ✅ USA A INDICAÇÃO QUE JÁ VEM DO MEDICAMENTO CADASTRADO
+      indicacao: med.indicacao || 'CONFORME PRESCRIÇÃO',
       tipo: 'continuo',
     };
     
     setItems([...items, newItem]);
-    setSelectedSymptoms([]);
   };
 
   const updateItem = (tempId: string, patch: Partial<ReceitaItem>) => {
@@ -133,7 +120,8 @@ export default function NovaReceita() {
           merged.nome = med.nomeComercial || med.nome || '';
           merged.apresentacao = med.apresentacao || 'comprimido';
           merged.dosagem = med.dosagem || '';
-          merged.indicacao = med.indicacao || '';
+          // ✅ MANTÉM A INDICAÇÃO DO MEDICAMENTO SELECIONADO
+          merged.indicacao = med.indicacao || 'CONFORME PRESCRIÇÃO';
         }
       }
       
@@ -173,41 +161,27 @@ export default function NovaReceita() {
       const continuos = items.filter(i => i.tipo === 'continuo');
       const sos = items.filter(i => i.tipo === 'sos');
       
-      // ✅ FORMATAÇÃO PARA A ESTRUTURA REAL DO FIRESTORE
-      // AGORA COM O CAMPO `symptoms` SENDO SALVO PARA CADA MEDICAMENTO
-      
+      // Formata para a estrutura REAL do seu Firestore
       const medicamentos_fixos = continuos.map(item => ({
         nome: item.nome.toUpperCase(),
         texto_original_da_posologia: `${item.doseQuantity} ${item.apresentacao}(s) - ${item.frequency}x ao dia`.toUpperCase(),
-        indicacao: item.indicacao.toUpperCase() || 'CONFORME PRESCRIÇÃO',
+        indicacao: item.indicacao.toUpperCase(),
         horarios: item.calculatedHours,
         intervalo: Math.floor(24 / item.frequency),
         horaInicio: item.startHour,
         doseQuantity: item.doseQuantity,
         apresentacao: item.apresentacao,
-        // ✅ SALVA OS SINTOMAS (PERSONAGENS VISUAIS)
-        symptoms: item.symptoms.map(s => ({
-          id: s.id,
-          name: s.name,
-          file: s.file
-        })),
       }));
       
       const medicamentos_sos = sos.map(item => ({
         nome: item.nome.toUpperCase(),
         texto_original_da_posologia: `${item.doseQuantity} ${item.apresentacao}(s) - SE NECESSÁRIO`.toUpperCase(),
-        indicacao: item.indicacao.toUpperCase() || 'USO SOB DEMANDA',
+        indicacao: item.indicacao.toUpperCase(),
         horarios: item.calculatedHours,
         intervalo: Math.floor(24 / item.frequency),
         horaInicio: item.startHour,
         doseQuantity: item.doseQuantity,
         apresentacao: item.apresentacao,
-        // ✅ SALVA OS SINTOMAS (PERSONAGENS VISUAIS)
-        symptoms: item.symptoms.map(s => ({
-          id: s.id,
-          name: s.name,
-          file: s.file
-        })),
       }));
       
       const itens = items.map(item => ({
@@ -219,12 +193,6 @@ export default function NovaReceita() {
         horaInicio: item.startHour,
         doseQuantity: item.doseQuantity,
         apresentacao: item.apresentacao,
-        // ✅ SALVA OS SINTOMAS (PERSONAGENS VISUAIS)
-        symptoms: item.symptoms.map(s => ({
-          id: s.id,
-          name: s.name,
-          file: s.file
-        })),
       }));
       
       await addDoc(collection(db, 'receitas'), {
@@ -379,38 +347,6 @@ export default function NovaReceita() {
           </div>
         </div>
 
-        {/* SINTOMAS GLOBAIS */}
-        <div className="bg-white rounded-2xl shadow-md p-6">
-          <label className="block text-sm font-bold text-gray-900 mb-4 uppercase">
-            SINTOMAS/INDICAÇÕES VISUAIS (SELECIONE ANTES DE ADICIONAR O MEDICAMENTO)
-          </label>
-          <p className="text-xs text-gray-600 mb-4 uppercase">
-            Os sintomas selecionados serão vinculados ao próximo medicamento adicionado.
-          </p>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-            {SYMPTOMS_DATA.map(symptom => (
-              <button
-                key={symptom.id}
-                type="button"
-                onClick={() => toggleSymptom(symptom.id)}
-                className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                  selectedSymptoms.includes(symptom.id)
-                    ? 'border-teal-600 bg-teal-50 shadow-md'
-                    : 'border-gray-200 hover:border-teal-300 bg-white'
-                }`}
-              >
-                <img
-                  src={`/img/n/f/${symptom.file}`}
-                  alt={symptom.name}
-                  className="w-10 h-10 object-contain"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-                <span className="text-xs font-semibold text-center uppercase">{symptom.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* LISTA DE MEDICAMENTOS */}
         <div className="space-y-4">
           {items.map((item) => (
@@ -418,7 +354,7 @@ export default function NovaReceita() {
               
               {/* Linha 1: Medicamento, Tipo, Quantidade, Excluir */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
-                <div className="lg:col-span-5">
+                <div className="lg:col-span-6">
                   <label className="text-xs font-bold text-gray-600 uppercase">MEDICAMENTO</label>
                   <select
                     value={item.medicationId}
@@ -427,21 +363,21 @@ export default function NovaReceita() {
                   >
                     {medicamentos.map(m => (
                       <option key={m.id} value={m.id}>
-                        {(m.nomeComercial || m.nome || '').toUpperCase()} ({(m.dosagem || '').toUpperCase()})
+                        {(m.nomeComercial || m.nome || '').toUpperCase()} - {(m.indicacao || 'SEM INDICAÇÃO').toUpperCase()}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-2">
                   <label className="text-xs font-bold text-gray-600 uppercase">TIPO DE USO</label>
                   <select
                     value={item.tipo}
                     onChange={e => updateItem(item.tempId, { tipo: e.target.value as 'continuo' | 'sos' })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase bg-white text-sm"
                   >
-                    <option value="continuo">USO CONTÍNUO</option>
-                    <option value="sos">SOS (SE NECESSÁRIO)</option>
+                    <option value="continuo">CONTÍNUO</option>
+                    <option value="sos">SOS</option>
                   </select>
                 </div>
 
@@ -547,27 +483,15 @@ export default function NovaReceita() {
                   ))}
                 </div>
                 
-                {/* Sintomas */}
-                {item.symptoms.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-teal-200">
-                    <p className="text-xs font-bold text-gray-700 mb-2 uppercase">
-                      PARA QUE SERVE:
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      {item.symptoms.map((symptom, i) => (
-                        <div key={i} className="bg-white rounded-xl p-3 shadow border-2 border-teal-200 text-center">
-                          <img
-                            src={`/img/n/f/${symptom.file}`}
-                            alt={symptom.name}
-                            className="w-12 h-12 object-contain mx-auto mb-1"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                          <p className="text-xs font-bold text-gray-700 uppercase">{symptom.name}</p>
-                        </div>
-                      ))}
-                    </div>
+                {/* Indicação do medicamento (automática) */}
+                <div className="mt-4 pt-4 border-t border-teal-200">
+                  <p className="text-xs font-bold text-gray-700 mb-2 uppercase">
+                    PARA QUE SERVE:
+                  </p>
+                  <div className="bg-white rounded-xl p-3 shadow border-2 border-teal-200">
+                    <p className="text-sm font-bold text-gray-700 uppercase">{item.indicacao}</p>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           ))}
