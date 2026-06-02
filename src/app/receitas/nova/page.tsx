@@ -173,17 +173,41 @@ export default function NovaReceita() {
       const continuos = items.filter(i => i.tipo === 'continuo');
       const sos = items.filter(i => i.tipo === 'sos');
       
-      // Formata para a estrutura REAL do seu Firestore
+      // ✅ FORMATAÇÃO PARA A ESTRUTURA REAL DO FIRESTORE
+      // AGORA COM O CAMPO `symptoms` SENDO SALVO PARA CADA MEDICAMENTO
+      
       const medicamentos_fixos = continuos.map(item => ({
         nome: item.nome.toUpperCase(),
         texto_original_da_posologia: `${item.doseQuantity} ${item.apresentacao}(s) - ${item.frequency}x ao dia`.toUpperCase(),
         indicacao: item.indicacao.toUpperCase() || 'CONFORME PRESCRIÇÃO',
+        horarios: item.calculatedHours,
+        intervalo: Math.floor(24 / item.frequency),
+        horaInicio: item.startHour,
+        doseQuantity: item.doseQuantity,
+        apresentacao: item.apresentacao,
+        // ✅ SALVA OS SINTOMAS (PERSONAGENS VISUAIS)
+        symptoms: item.symptoms.map(s => ({
+          id: s.id,
+          name: s.name,
+          file: s.file
+        })),
       }));
       
       const medicamentos_sos = sos.map(item => ({
         nome: item.nome.toUpperCase(),
         texto_original_da_posologia: `${item.doseQuantity} ${item.apresentacao}(s) - SE NECESSÁRIO`.toUpperCase(),
         indicacao: item.indicacao.toUpperCase() || 'USO SOB DEMANDA',
+        horarios: item.calculatedHours,
+        intervalo: Math.floor(24 / item.frequency),
+        horaInicio: item.startHour,
+        doseQuantity: item.doseQuantity,
+        apresentacao: item.apresentacao,
+        // ✅ SALVA OS SINTOMAS (PERSONAGENS VISUAIS)
+        symptoms: item.symptoms.map(s => ({
+          id: s.id,
+          name: s.name,
+          file: s.file
+        })),
       }));
       
       const itens = items.map(item => ({
@@ -193,6 +217,14 @@ export default function NovaReceita() {
         intervalo: Math.floor(24 / item.frequency),
         indicacao: item.indicacao.toUpperCase(),
         horaInicio: item.startHour,
+        doseQuantity: item.doseQuantity,
+        apresentacao: item.apresentacao,
+        // ✅ SALVA OS SINTOMAS (PERSONAGENS VISUAIS)
+        symptoms: item.symptoms.map(s => ({
+          id: s.id,
+          name: s.name,
+          file: s.file
+        })),
       }));
       
       await addDoc(collection(db, 'receitas'), {
@@ -201,6 +233,7 @@ export default function NovaReceita() {
         prontuario: paciente?.matricula || '',
         pacienteId,
         data_nasc: paciente?.dataNascimento || '',
+        alergias: paciente?.alergias || '',
         
         // Profissionais
         medico: medico?.nome?.toUpperCase() || '',
@@ -349,8 +382,11 @@ export default function NovaReceita() {
         {/* SINTOMAS GLOBAIS */}
         <div className="bg-white rounded-2xl shadow-md p-6">
           <label className="block text-sm font-bold text-gray-900 mb-4 uppercase">
-            SINTOMAS/INDICAÇÕES VISUAIS (SELECIONE PARA ADICIONAR AOS MEDICAMENTOS)
+            SINTOMAS/INDICAÇÕES VISUAIS (SELECIONE ANTES DE ADICIONAR O MEDICAMENTO)
           </label>
+          <p className="text-xs text-gray-600 mb-4 uppercase">
+            Os sintomas selecionados serão vinculados ao próximo medicamento adicionado.
+          </p>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
             {SYMPTOMS_DATA.map(symptom => (
               <button
