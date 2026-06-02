@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { Receita, Instituicao } from '@/types';
 import { 
   Printer, ArrowLeft, Sun, Coffee, Utensils, Sunset, Clock, Moon, 
-  AlertCircle, MapPin, Phone, User, Stethoscope, Pill 
+  AlertCircle, MapPin, Phone, User, Stethoscope, Pill, Capsule
 } from 'lucide-react';
 
 // ============================================================================
@@ -68,6 +68,71 @@ function getTimeColumn(timeStr: string): string | null {
   return 'AO DEITAR';
 }
 
+// Mapeamento de sintomas para imagens
+function getSymptomImage(symptomName: string | undefined): string | null {
+  if (!symptomName) return null;
+  
+  const name = symptomName.toLowerCase().trim();
+  
+  // Mapeamento direto baseado nos arquivos do GitHub
+  const symptomMap: Record<string, string> = {
+    'agitação': 'agitacao.png',
+    'agitacao': 'agitacao.png',
+    'ansiedade': 'ansiedade.png',
+    'asma': 'asma.png',
+    'câncer': 'cancermama.png',
+    'cancer': 'cancermama.png',
+    'circulação': 'circulacao.png',
+    'circulacao': 'circulacao.png',
+    'colesterol': 'colesterol.png',
+    'constipação': 'constipacao.png',
+    'constipacao': 'constipacao.png',
+    'coração': 'coracao.png',
+    'coracao': 'coracao.png',
+    'depressão': 'depressao.png',
+    'depressao': 'depressao.png',
+    'diabetes': 'diabete.png',
+    'diabete': 'diabete.png',
+    'diarreia': 'diarreia.png',
+    'dor': 'dor.png',
+    'estômago': 'dorestomago.png',
+    'estomago': 'dorestomago.png',
+    'fadiga': 'fadiga.png',
+    'falta de ar': 'faltaar.png',
+    'infecção': 'infeccao.png',
+    'infeccao': 'infeccao.png',
+    'insônia': 'insonia.png',
+    'insonia': 'insonia.png',
+    'náusea': 'nausea.png',
+    'nausea': 'nausea.png',
+    'ossos': 'ossos.png',
+    'perda de apetite': 'perdaapetite.png',
+    'pressão alta': 'pressaoalta.png',
+    'proteger estômago': 'protegerestomago.png',
+    'pulmão': 'pulmao.png',
+    'pulmao': 'pulmao.png',
+    'sono': 'sono.png',
+    'tosse': 'tosse.png',
+    'trombose': 'trombose.png',
+    'vômito': 'vomito.png',
+    'vomito': 'vomito.png',
+  };
+  
+  // Busca exata primeiro
+  if (symptomMap[name]) {
+    return `/img/n/f/${symptomMap[name]}`;
+  }
+  
+  // Busca parcial
+  for (const [key, file] of Object.entries(symptomMap)) {
+    if (name.includes(key)) {
+      return `/img/n/f/${file}`;
+    }
+  }
+  
+  return null;
+}
+
 // ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
@@ -79,11 +144,12 @@ export default function ImprimirReceita() {
   const [receita, setReceita] = useState<Receita | null>(null);
   const [instituicao, setInstituicao] = useState<Instituicao | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      if (receitaId) {
-        try {
+      try {
+        if (receitaId) {
           const snap = await getDoc(doc(db, 'receitas', receitaId));
           if (snap.exists()) {
             const data = { id: snap.id, ...snap.data() } as Receita;
@@ -95,12 +161,18 @@ export default function ImprimirReceita() {
                 setInstituicao({ id: instSnap.id, ...instSnap.data() } as Instituicao);
               }
             }
+          } else {
+            setError('RECEITA NÃO ENCONTRADA');
           }
-        } catch (error) {
-          console.error('Erro ao carregar receita:', error);
+        } else {
+          setError('ID DA RECEITA NÃO INFORMADO');
         }
+      } catch (err) {
+        console.error('Erro ao carregar receita:', err);
+        setError('ERRO AO CARREGAR RECEITA');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, [receitaId]);
 
@@ -115,12 +187,12 @@ export default function ImprimirReceita() {
     );
   }
 
-  if (!receita) {
+  if (error || !receita) {
     return (
       <div className="min-h-screen bg-slate-100 p-8 text-center">
         <div className="max-w-md mx-auto bg-white rounded-2xl shadow-lg p-8">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <p className="text-lg font-bold text-gray-700 uppercase mb-4">RECEITA NÃO ENCONTRADA</p>
+          <p className="text-lg font-bold text-gray-700 uppercase mb-4">{error || 'RECEITA NÃO ENCONTRADA'}</p>
           <button 
             onClick={() => router.push('/dashboard')} 
             className="bg-teal-700 hover:bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold uppercase transition-colors"
@@ -244,75 +316,34 @@ export default function ImprimirReceita() {
 
           {allItems.map((med: any, index) => {
             const dose = med.texto_original_da_posologia?.split(' ')[0] || '1';
+            const apresentacao = med.apresentacao?.toLowerCase() || 'comprimido';
             
-            // ✅ LÓGICA CORRIGIDA PARA BUSCAR IMAGEM DO SINTOMA
+            // Busca imagem do sintoma
             let symptomImage: string | null = null;
             let symptomName: string = med.indicacao || 'CONFORME PRESCRIÇÃO';
             
-            // Tenta buscar do array symptoms (receitas novas)
             if (med.symptoms && Array.isArray(med.symptoms) && med.symptoms.length > 0) {
               const symptom = med.symptoms[0];
-              // Usa o campo 'file' se existir, senão tenta montar do 'name' ou 'id'
+              symptomName = symptom.name || symptomName;
               if (symptom.file) {
                 symptomImage = `/img/n/f/${symptom.file}`;
               } else if (symptom.id) {
                 symptomImage = `/img/n/f/${symptom.id}.png`;
               }
-              symptomName = symptom.name || symptomName;
-            } 
-            // Fallback: tenta adivinhar pela indicação (receitas antigas)
-            else if (med.indicacao) {
-              const ind = med.indicacao.toLowerCase();
-              const symptomMap: Record<string, string> = {
-                'agitação': 'agitacao.png',
-                'agitacao': 'agitacao.png',
-                'ansiedade': 'ansiedade.png',
-                'asma': 'asma.png',
-                'câncer': 'cancermama.png',
-                'cancer': 'cancermama.png',
-                'circulação': 'circulacao.png',
-                'circulacao': 'circulacao.png',
-                'colesterol': 'colesterol.png',
-                'constipação': 'constipacao.png',
-                'constipacao': 'constipacao.png',
-                'coração': 'coracao.png',
-                'coracao': 'coracao.png',
-                'depressão': 'depressao.png',
-                'depressao': 'depressao.png',
-                'diabetes': 'diabete.png',
-                'diabete': 'diabete.png',
-                'diarreia': 'diarreia.png',
-                'dor': 'dor.png',
-                'estômago': 'dorestomago.png',
-                'estomago': 'dorestomago.png',
-                'fadiga': 'fadiga.png',
-                'falta de ar': 'faltaar.png',
-                'infecção': 'infeccao.png',
-                'infeccao': 'infeccao.png',
-                'insônia': 'insonia.png',
-                'insonia': 'insonia.png',
-                'náusea': 'nausea.png',
-                'nausea': 'nausea.png',
-                'ossos': 'ossos.png',
-                'perda de apetite': 'perdaapetite.png',
-                'pressão alta': 'pressaoalta.png',
-                'proteger estômago': 'protegerestomago.png',
-                'pulmão': 'pulmao.png',
-                'pulmao': 'pulmao.png',
-                'sono': 'sono.png',
-                'tosse': 'tosse.png',
-                'trombose': 'trombose.png',
-                'vômito': 'vomito.png',
-                'vomito': 'vomito.png',
-              };
-              
-              for (const [key, file] of Object.entries(symptomMap)) {
-                if (ind.includes(key)) {
-                  symptomImage = `/img/n/f/${file}`;
-                  break;
-                }
-              }
             }
+            
+            if (!symptomImage) {
+              symptomImage = getSymptomImage(symptomName);
+            }
+
+            // Determina os horários ativos
+            const activeSlots = TIME_SLOTS.map(slot => {
+              const isActive = med.horarios?.some((h: string) => {
+                const hCol = getTimeColumn(h);
+                return hCol === slot.label;
+              });
+              return { ...slot, isActive };
+            }).filter(slot => slot.isActive);
 
             return (
               <div key={index} className="relative group">
@@ -325,11 +356,14 @@ export default function ImprimirReceita() {
                       {med.nome || 'MEDICAMENTO'}
                     </h2>
                     <div className="flex items-center gap-2 text-slate-600 font-bold text-sm">
-                      <span className="bg-teal-100 text-teal-800 px-2 py-0.5 rounded text-xs">💊</span>
+                      {apresentacao.includes('capsula') || apresentacao.includes('cápsula') ? (
+                        <span className="bg-teal-100 text-teal-800 px-2 py-0.5 rounded text-xs">💊</span>
+                      ) : (
+                        <span className="bg-teal-100 text-teal-800 px-2 py-0.5 rounded text-xs">💊</span>
+                      )}
                       <span>{dose.toUpperCase()}</span>
                     </div>
                     
-                    {/* CARTÃO VISUAL DO SINTOMA - CORRIGIDO */}
                     <div className="mt-3 bg-rose-50 border-2 border-rose-200 rounded-xl p-2 text-center shadow-sm">
                       <div className="h-20 w-full flex items-center justify-center bg-white rounded-lg mb-1 border border-rose-100 overflow-hidden">
                         {symptomImage ? (
@@ -363,14 +397,11 @@ export default function ImprimirReceita() {
                     </div>
 
                     {TIME_SLOTS.map((slot, i) => {
-                      const isActive = med.horarios?.some((h: string) => {
-                        const hCol = getTimeColumn(h);
-                        return hCol === slot.label;
-                      });
-
+                      const slotData = activeSlots.find(s => s.label === slot.label);
+                      
                       return (
                         <div key={i} className="h-full flex flex-col items-center justify-center z-10 py-1">
-                          {isActive ? (
+                          {slotData?.isActive ? (
                             <div className="flex flex-col items-center gap-1">
                               <div className="bg-teal-600 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold shadow-md print:shadow-none print:bg-teal-700">
                                 {dose}
