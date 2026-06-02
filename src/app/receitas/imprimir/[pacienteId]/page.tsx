@@ -47,8 +47,7 @@ function getTimeColumn(timeStr: string) {
   if (hour >= 6 && hour < 7) return 'AO ACORDAR';
   if (hour >= 7 && hour < 11) return 'CAFÉ DA MANHÃ';
   if (hour >= 11 && hour < 14) return 'ALMOÇO';
-  if (hour >= 14 && hour < 17) return 'À TARDE';
-  if (hour >= 17 && hour < 19) return 'FIM DA TARDE';
+  if (hour >= 14 && hour < 17) return 'À TARDE';  if (hour >= 17 && hour < 19) return 'FIM DA TARDE';
   if (hour >= 19 && hour < 21) return 'JANTAR';
   return 'AO DEITAR';
 }
@@ -97,8 +96,7 @@ export default function ImprimirReceita() {
   if (!receita) {
     return (
       <div className="min-h-screen bg-slate-100 p-8 text-center">
-        <p>Receita não encontrada.</p>
-        <button onClick={() => router.push('/dashboard')} className="mt-4 text-teal-700 underline">Voltar</button>
+        <p>Receita não encontrada.</p>        <button onClick={() => router.push('/dashboard')} className="mt-4 text-teal-700 underline">Voltar</button>
       </div>
     );
   }
@@ -148,7 +146,6 @@ export default function ImprimirReceita() {
             ))}
           </div>
         </div>
-
         {/* LISTA DE MEDICAMENTOS */}
         <div className="p-6 space-y-8">
           {allItems.length === 0 && (
@@ -197,8 +194,7 @@ export default function ImprimirReceita() {
                   </div>
 
                   {/* Coluna Direita: Grade de Horários */}
-                  <div className="flex-1 grid grid-cols-7 gap-2 relative">
-                    {/* Linhas guia verticais */}
+                  <div className="flex-1 grid grid-cols-7 gap-2 relative">                    {/* Linhas guia verticais */}
                     <div className="absolute inset-0 flex pointer-events-none">
                       {Array.from({ length: 8 }).map((_, i) => (
                         <div key={i} className="flex-1 border-l border-slate-100 first:border-0"></div>
@@ -247,6 +243,5 @@ export default function ImprimirReceita() {
           Gerado por Receita Facilitada • {new Date().toLocaleDateString('pt-BR')}
         </div>
       </div>
-    </div>
-  );
+    </div>  );
 }
