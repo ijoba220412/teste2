@@ -398,3 +398,82 @@ export default function ImprimirReceita() {
           <div className="mb-6 pb-4 border-b border-slate-200">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm text-gray-700 uppercase">
               <div className="flex items-center gap-2">
+                <MapPin size={16} className="text-teal-700" />
+                <span className="font-semibold">{instEndereco.toUpperCase()}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone size={16} className="text-teal-700" />
+                <span className="font-semibold">{instTelefone}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* LINHAS DE ASSINATURA */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+            {/* Médico */}
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-2 text-gray-600">
+                <Stethoscope size={16} />
+                <span className="text-xs font-bold uppercase">Médico Responsável</span>
+              </div>
+              <div className="border-t-2 border-gray-800 pt-3 mx-4">
+                <p className="font-black text-gray-900 uppercase text-sm">
+                  {receita.medico || 'NÃO INFORMADO'}
+                </p>
+                <p className="text-xs text-gray-600 uppercase font-semibold mt-1">
+                  {receita.medico_id || 'CRM/UF'}
+                </p>
+              </div>
+            </div>
+            
+            {/* Farmacêutico */}
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-2 text-gray-600">
+                <Pill size={16} />
+                <span className="text-xs font-bold uppercase">Farmacêutico Responsável</span>
+              </div>
+              <div className="border-t-2 border-gray-800 pt-3 mx-4">
+                <p className="font-black text-gray-900 uppercase text-sm">
+                  {receita.farmaceutico || 'NÃO INFORMADO'}
+                </p>
+                <p className="text-xs text-gray-600 uppercase font-semibold mt-1">
+                  {receita.farmaceutico_id || 'CRF/UF'}
+                </p>
+              </div>            </div>
+          </div>
+
+          {/* CRÉDITOS */}
+          <div className="mt-8 pt-4 border-t border-slate-200 text-center">
+            <p className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">
+              RECEITA FACILITADA — SEGURANÇA E CLAREZA VISUAL PARA TODOS
+            </p>
+            <p className="text-[10px] text-gray-400 uppercase mt-1">
+              DOCUMENTO GERADO ELETRONICAMENTE EM {new Date().toLocaleDateString('pt-BR')}
+            </p>
+          </div>
+        </footer>
+
+      </div>
+
+      {/* ================================================================== */}
+      {/* ESTILOS DE IMPRESSÃO */}
+      {/* ================================================================== */}
+      <style jsx>{`
+        @media print {
+          body { 
+            background: white !important; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+          }
+          .print\\:hidden { 
+            display: none !important; 
+          }
+          @page { 
+            size: A4; 
+            margin: 10mm; 
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
