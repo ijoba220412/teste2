@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { Receita, Instituicao } from '@/types';
 import { 
   Printer, ArrowLeft, User, Calendar, FileText, Stethoscope,
-  AlertCircle, MapPin, Phone, Pill, History, Check,
+  AlertCircle, MapPin, Phone, History, Check,
   Sun, Coffee, Utensils, Sunset, Moon
 } from 'lucide-react';
 
@@ -26,31 +26,78 @@ const SCHEDULE_SLOTS = [
 ];
 
 // ============================================================================
-// COMPONENTE VISUAL DO MEDICAMENTO (PÍLULA/CÁPSULA) - TAMANHO MAIOR
+// COMPONENTES VISUAIS DAS FORMAS FARMACÊUTICAS
 // ============================================================================
-const MedicationVisual = ({ dose, form }: { dose: string, form?: string }) => {
-  const isCapsule = form?.toLowerCase().includes('capsula') || form?.toLowerCase().includes('cápsula');
-  const doseNum = parseInt(dose) || 1;
 
+// COMPRIMIDO: Círculo com linha diagonal (Ø)
+const ComprimidoIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <circle cx={size/2} cy={size/2} r={size/2 - 2} fill="#0f766e" stroke="#0f766e" strokeWidth="1.5"/>
+    <line x1={size/4 + 2} y1={size - size/4 - 2} x2={size - size/4 - 2} y2={size/4 + 2} stroke="white" strokeWidth="2"/>
+  </svg>
+);
+
+// CÁPSULA: Oval dividido
+const CapsulaIcon = ({ size = 28 }: { size?: number }) => (
+  <svg width={size} height={size * 0.57} viewBox={`0 0 ${size} ${size * 0.57}`}>
+    <rect x="0" y="0" width={size} height={size * 0.57} rx={size * 0.285} fill="currentColor" stroke="#0f766e" strokeWidth="1.5" className="text-teal-700"/>
+    <path d={`M ${size/2} 0 L ${size/2} ${size * 0.57}`} stroke="#0f766e" strokeWidth="1" opacity="0.5"/>
+  </svg>
+);
+
+// COPO MEDIDOR (Líquido/Xarope)
+const CopoMedidorIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" className="text-teal-700">
+    <path d="M 5 7 L 19 7 L 17 19 L 7 19 Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    <line x1="8" y1="11" x2="16" y2="11" stroke="currentColor" strokeWidth="1.2"/>
+    <line x1="7.5" y1="15" x2="16.5" y2="15" stroke="currentColor" strokeWidth="1.2"/>
+  </svg>
+);
+
+// GOTA (Gota de líquido)
+const GotaIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" className="text-teal-700">
+    <path d="M12 2 C12 2 6 10 6 14 C6 17.31 8.69 20 12 20 C15.31 20 18 17.31 18 14 C18 10 12 2 12 2 Z" 
+          fill="currentColor" stroke="#0f766e" strokeWidth="1.2"/>
+    {/* Brilho interno da gota */}
+    <ellipse cx="10" cy="13" rx="1.5" ry="2.5" fill="white" opacity="0.6"/>
+  </svg>
+);
+
+// Função que retorna o ícone baseado na forma farmacêutica
+const getFormIcon = (form?: string, size: number = 24) => {
+  const formLower = form?.toLowerCase() || '';
+  
+  if (formLower.includes('capsula') || formLower.includes('cápsula')) {
+    return <CapsulaIcon size={size} />;
+  } else if (formLower.includes('xarope') || formLower.includes('líquido') || formLower.includes('liquido') || formLower.includes('solução') || formLower.includes('solucao')) {
+    return <CopoMedidorIcon size={size} />;
+  } else if (formLower.includes('gota')) {
+    return <GotaIcon size={size} />;
+  } else {
+    // Padrão: comprimido
+    return <ComprimidoIcon size={size} />;
+  }
+};
+
+// Componente visual para a grade de horários (ícones maiores)
+const MedicationVisual = ({ dose, form }: { dose: string, form?: string }) => {
+  const doseNum = parseInt(dose) || 1;
+  
   return (
     <div className="flex flex-wrap items-center justify-center gap-1.5">
       {Array.from({ length: Math.min(doseNum, 5) }).map((_, i) => (
-        isCapsule ? (
-          // CÁPSULA OVAL - TAMANHO MAIOR (28x16)
-          <svg key={i} width="28" height="16" viewBox="0 0 28 16" className="text-teal-700">
-            <rect x="0" y="0" width="28" height="16" rx="8" fill="currentColor" stroke="#0f766e" strokeWidth="1.5"/>
-            <path d="M 14 0 L 14 16" stroke="#0f766e" strokeWidth="1" opacity="0.5"/>
-          </svg>
-        ) : (
-          // COMPRIMIDO COM RISCO (Ø) - TAMANHO MAIOR (24x24)
-          <svg key={i} width="24" height="24" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" fill="#0f766e" stroke="#0f766e" strokeWidth="1.5"/>
-            <line x1="5" y1="19" x2="19" y2="5" stroke="white" strokeWidth="2"/>
-          </svg>
-        )
+        <div key={i} className="flex items-center justify-center">
+          {getFormIcon(form, 24)}
+        </div>
       ))}
     </div>
   );
+};
+
+// Componente visual pequeno (para mostrar ao lado do nome do medicamento)
+const MedicationTypeIcon = ({ form }: { form?: string }) => {
+  return getFormIcon(form, 18);
 };
 
 // ============================================================================
@@ -304,7 +351,7 @@ export default function ImprimirReceita() {
                 allItems.map((med: any, idx) => {
                   const dose = med.texto_original_da_posologia?.split(' ')[0] || '1';
                   
-                  // ✅ CORREÇÃO: PROCESSAR TODOS OS SINTOMAS DO MEDICAMENTO
+                  // Processa TODOS os sintomas do medicamento
                   const symptomsList: Array<{ image: string | null; name: string }> = [];
                   
                   if (med.symptoms && Array.isArray(med.symptoms) && med.symptoms.length > 0) {
@@ -317,7 +364,6 @@ export default function ImprimirReceita() {
                       symptomsList.push({ image: img, name: sName });
                     });
                   } else if (med.indicacao) {
-                    // Fallback: usa a indicação como sintoma único
                     const img = getSymptomImage(med.indicacao);
                     symptomsList.push({ image: img, name: med.indicacao });
                   }
@@ -329,8 +375,9 @@ export default function ImprimirReceita() {
                           <div>
                             <p className="text-lg font-black text-slate-900 uppercase leading-none mb-1">{med.nome || 'MEDICAMENTO'}</p>
                             <div className="flex items-center gap-2">
-                              <div className="rounded bg-teal-100 p-1">
-                                <Pill className="h-4 w-4 text-teal-700" />
+                              {/* ÍCONE ESPECÍFICO POR FORMA FARMACÊUTICA */}
+                              <div className="rounded bg-teal-100 p-1.5 flex items-center justify-center">
+                                <MedicationTypeIcon form={med.apresentacao} />
                               </div>
                               <p className="text-xs font-bold text-slate-600 italic uppercase">{dose} ({med.apresentacao || 'COMPRIMIDO'})</p>
                             </div>
@@ -341,7 +388,7 @@ export default function ImprimirReceita() {
                             )}
                           </div>
                           
-                          {/* ✅ CORREÇÃO: EXIBIR TODOS OS SINTOMAS */}
+                          {/* EXIBIR TODOS OS SINTOMAS */}
                           {symptomsList.length > 0 && (
                             <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
                               {symptomsList.map((symptom, sIdx) => (
@@ -354,7 +401,6 @@ export default function ImprimirReceita() {
                                         className="max-h-full max-w-full object-contain" 
                                         onError={(e) => { 
                                           (e.currentTarget as HTMLImageElement).style.display = 'none';
-                                          // Fallback: mostra ícone de interrogação
                                           if ((e.currentTarget as HTMLImageElement).parentElement) {
                                             (e.currentTarget as HTMLImageElement).parentElement!.innerHTML = '<span class="text-3xl text-gray-400">❓</span>';
                                           }
@@ -422,7 +468,6 @@ export default function ImprimirReceita() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {receita.medicamentos_sos.map((sos: any, i: number) => {
-                // ✅ CORREÇÃO: PROCESSAR TODOS OS SINTOMAS DOS MEDICAMENTOS SOS
                 const symptomsList: Array<{ image: string | null; name: string }> = [];
                 
                 if (sos.symptoms && Array.isArray(sos.symptoms) && sos.symptoms.length > 0) {
@@ -442,8 +487,8 @@ export default function ImprimirReceita() {
                 return (
                   <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-teal-200 flex flex-col gap-4">
                     <div className="flex items-start gap-4">
-                      <div className="rounded-lg bg-teal-100 p-3 flex-shrink-0">
-                        <Pill className="h-6 w-6 text-teal-700" />
+                      <div className="rounded-lg bg-teal-100 p-3 flex-shrink-0 flex items-center justify-center">
+                        <MedicationTypeIcon form={sos.apresentacao} />
                       </div>
                       <div className="flex-1">
                         <p className="text-lg font-black text-slate-900 leading-tight uppercase">{sos.nome}</p>
@@ -504,7 +549,7 @@ export default function ImprimirReceita() {
               <p className="text-lg font-black text-slate-900 uppercase">{receita.farmaceutico || 'PROFISSIONAL FARMACÊUTICO'}</p>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">CRF: {receita.farmaceutico_id || 'NÃO INFORMADO'}</p>
               <div className="flex items-center justify-center gap-1 mt-2 text-slate-400">
-                <Pill className="h-4 w-4" />
+                <Stethoscope className="h-4 w-4" />
                 <span className="text-[10px] font-bold uppercase">DISPENSAÇÃO</span>
               </div>
             </div>
