@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { Receita, Instituicao } from '@/types';
 import { 
   Printer, ArrowLeft, User, Calendar, FileText, Stethoscope,
-  AlertCircle, MapPin, Phone, Pill, Clock, History, Check,
+  AlertCircle, MapPin, Phone, Pill, History, Check,
   Sun, Coffee, Utensils, Sunset, Moon
 } from 'lucide-react';
 
@@ -26,26 +26,26 @@ const SCHEDULE_SLOTS = [
 ];
 
 // ============================================================================
-// COMPONENTE VISUAL DO MEDICAMENTO (PÍLULA/CÁPSULA)
+// COMPONENTE VISUAL DO MEDICAMENTO (PÍLULA/CÁPSULA) - TAMANHO MAIOR
 // ============================================================================
 const MedicationVisual = ({ dose, form }: { dose: string, form?: string }) => {
   const isCapsule = form?.toLowerCase().includes('capsula') || form?.toLowerCase().includes('cápsula');
   const doseNum = parseInt(dose) || 1;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-1">
+    <div className="flex flex-wrap items-center justify-center gap-1.5">
       {Array.from({ length: Math.min(doseNum, 5) }).map((_, i) => (
         isCapsule ? (
-          // CÁPSULA OVAL
-          <svg key={i} width="20" height="12" viewBox="0 0 24 14" className="text-teal-700">
-            <rect x="0" y="0" width="24" height="14" rx="7" fill="currentColor" stroke="#0f766e" strokeWidth="1.5"/>
-            <path d="M 12 0 L 12 14" stroke="#0f766e" strokeWidth="1" opacity="0.5"/>
+          // CÁPSULA OVAL - TAMANHO MAIOR (28x16)
+          <svg key={i} width="28" height="16" viewBox="0 0 28 16" className="text-teal-700">
+            <rect x="0" y="0" width="28" height="16" rx="8" fill="currentColor" stroke="#0f766e" strokeWidth="1.5"/>
+            <path d="M 14 0 L 14 16" stroke="#0f766e" strokeWidth="1" opacity="0.5"/>
           </svg>
         ) : (
-          // COMPRIMIDO COM RISCO (Ø)
-          <svg key={i} width="16" height="16" viewBox="0 0 20 20">
-            <circle cx="10" cy="10" r="8" fill="none" stroke="#0f766e" strokeWidth="2"/>
-            <line x1="4" y1="16" x2="16" y2="4" stroke="#0f766e" strokeWidth="2"/>
+          // COMPRIMIDO COM RISCO (Ø) - TAMANHO MAIOR (24x24)
+          <svg key={i} width="24" height="24" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" fill="#0f766e" stroke="#0f766e" strokeWidth="1.5"/>
+            <line x1="5" y1="19" x2="19" y2="5" stroke="white" strokeWidth="2"/>
           </svg>
         )
       ))}
@@ -188,7 +188,7 @@ export default function ImprimirReceita() {
   return (
     <div className="min-h-screen bg-gray-100 pb-10">
       
-      {/* BOTÕES DE AÇÃO (não aparecem na impressão) */}
+      {/* BOTÕES DE AÇÃO */}
       <div className="no-print bg-white shadow p-4 flex justify-between items-center sticky top-0 z-50">
         <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-gray-700 font-semibold uppercase hover:bg-gray-50 px-4 py-2 rounded-xl transition-colors">
           <ArrowLeft className="h-5 w-5" /> VOLTAR
@@ -199,7 +199,7 @@ export default function ImprimirReceita() {
       </div>
 
       {/* FOLHA DA RECEITA */}
-      <div ref={printRef} id="prescription-paper" className="max-w-4xl mx-auto mt-6 bg-white p-8 sm:p-12 shadow-xl print:shadow-none print:mt-0 print:p-0">
+      <div ref={printRef} id="prescription-paper" className="max-w-4xl mx-auto mt-6 bg-white p-8 sm:p-12 shadow-xl print:shadow-none print:mt-0 print:p-0 print:w-full">
         
         {/* ========== HEADER ========== */}
         <div className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-slate-900 pb-6 mb-8 text-center sm:text-left gap-4">
@@ -276,13 +276,13 @@ export default function ImprimirReceita() {
           <table className="w-full border-collapse border-b-2 border-slate-900">
             <thead>
               <tr className="bg-slate-900 text-white">
-                <th className="border border-slate-900 p-3 text-sm font-black uppercase leading-tight min-w-[200px] text-left">
+                <th className="border border-slate-900 p-3 text-sm font-black uppercase leading-tight min-w-[220px] text-left">
                   MEDICAMENTO E MOTIVO
                 </th>
                 {SCHEDULE_SLOTS.map(slot => {
                   const Icon = slot.icon;
                   return (
-                    <th key={slot.id} className="border border-slate-900 p-2 text-center min-w-[60px]">
+                    <th key={slot.id} className="border border-slate-900 p-2 text-center min-w-[70px]">
                       <div className="flex flex-col items-center">
                         <Icon className="h-6 w-6 mb-1" />
                         <span className="text-[8px] font-black uppercase leading-tight">{slot.label}</span>
@@ -304,16 +304,24 @@ export default function ImprimirReceita() {
                 allItems.map((med: any, idx) => {
                   const dose = med.texto_original_da_posologia?.split(' ')[0] || '1';
                   
-                  let symptomImage = null;
-                  let symptomName = med.indicacao || '';
+                  // ✅ CORREÇÃO: PROCESSAR TODOS OS SINTOMAS DO MEDICAMENTO
+                  const symptomsList: Array<{ image: string | null; name: string }> = [];
+                  
                   if (med.symptoms && Array.isArray(med.symptoms) && med.symptoms.length > 0) {
-                    const s = med.symptoms[0];
-                    symptomName = s.name || symptomName;
-                    if (s.file) symptomImage = `/img/n/f/${s.file}`;
-                    else if (s.id) symptomImage = `/img/n/f/${s.id}.png`;
+                    med.symptoms.forEach((s: any) => {
+                      let img: string | null = null;
+                      let sName = s.name || med.indicacao || '';
+                      if (s.file) img = `/img/n/f/${s.file}`;
+                      else if (s.id) img = `/img/n/f/${s.id}.png`;
+                      if (!img) img = getSymptomImage(sName);
+                      symptomsList.push({ image: img, name: sName });
+                    });
+                  } else if (med.indicacao) {
+                    // Fallback: usa a indicação como sintoma único
+                    const img = getSymptomImage(med.indicacao);
+                    symptomsList.push({ image: img, name: med.indicacao });
                   }
-                  if (!symptomImage) symptomImage = getSymptomImage(symptomName);
-
+                  
                   return (
                     <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                       <td className="border border-slate-300 p-4">
@@ -333,14 +341,34 @@ export default function ImprimirReceita() {
                             )}
                           </div>
                           
-                          {symptomImage && (
+                          {/* ✅ CORREÇÃO: EXIBIR TODOS OS SINTOMAS */}
+                          {symptomsList.length > 0 && (
                             <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
-                              <div className="flex flex-col items-center justify-center p-2 rounded-xl border-2 min-w-[100px] bg-pink-50 border-pink-200 shadow-sm">
-                                <div className="mb-1 flex items-center justify-center h-16 w-16">
-                                  <img src={symptomImage} alt={symptomName} className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                              {symptomsList.map((symptom, sIdx) => (
+                                <div key={sIdx} className="flex flex-col items-center justify-center p-2 rounded-xl border-2 min-w-[100px] bg-pink-50 border-pink-200 shadow-sm">
+                                  <div className="mb-1 flex items-center justify-center h-16 w-16">
+                                    {symptom.image ? (
+                                      <img 
+                                        src={symptom.image} 
+                                        alt={symptom.name} 
+                                        className="max-h-full max-w-full object-contain" 
+                                        onError={(e) => { 
+                                          (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                          // Fallback: mostra ícone de interrogação
+                                          if ((e.currentTarget as HTMLImageElement).parentElement) {
+                                            (e.currentTarget as HTMLImageElement).parentElement!.innerHTML = '<span class="text-3xl text-gray-400">❓</span>';
+                                          }
+                                        }} 
+                                      />
+                                    ) : (
+                                      <span className="text-3xl text-gray-400">❓</span>
+                                    )}
+                                  </div>
+                                  <span className="text-[8px] font-black uppercase text-center leading-tight text-pink-700 break-words px-1">
+                                    PARA {symptom.name.toUpperCase()}
+                                  </span>
                                 </div>
-                                <span className="text-[8px] font-black uppercase text-center leading-tight text-pink-700">PARA {symptomName.toUpperCase()}</span>
-                              </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -394,14 +422,22 @@ export default function ImprimirReceita() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {receita.medicamentos_sos.map((sos: any, i: number) => {
-                let symptomImage = null;
-                let symptomName = sos.indicacao || '';
+                // ✅ CORREÇÃO: PROCESSAR TODOS OS SINTOMAS DOS MEDICAMENTOS SOS
+                const symptomsList: Array<{ image: string | null; name: string }> = [];
+                
                 if (sos.symptoms && Array.isArray(sos.symptoms) && sos.symptoms.length > 0) {
-                  const s = sos.symptoms[0];
-                  symptomName = s.name || symptomName;
-                  if (s.file) symptomImage = `/img/n/f/${s.file}`;
+                  sos.symptoms.forEach((s: any) => {
+                    let img: string | null = null;
+                    let sName = s.name || sos.indicacao || '';
+                    if (s.file) img = `/img/n/f/${s.file}`;
+                    else if (s.id) img = `/img/n/f/${s.id}.png`;
+                    if (!img) img = getSymptomImage(sName);
+                    symptomsList.push({ image: img, name: sName });
+                  });
+                } else if (sos.indicacao) {
+                  const img = getSymptomImage(sos.indicacao);
+                  symptomsList.push({ image: img, name: sos.indicacao });
                 }
-                if (!symptomImage) symptomImage = getSymptomImage(symptomName);
 
                 return (
                   <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-teal-200 flex flex-col gap-4">
@@ -414,14 +450,32 @@ export default function ImprimirReceita() {
                         <p className="text-xs font-bold text-slate-500 uppercase mb-2">{sos.texto_original_da_posologia}</p>
                       </div>
                     </div>
-                    {symptomImage && (
+                    {symptomsList.length > 0 && (
                       <div className="flex flex-wrap gap-2 pt-3 border-t border-teal-100">
-                        <div className="flex flex-col items-center justify-center p-2 rounded-xl border-2 min-w-[90px] bg-pink-50 border-pink-200 shadow-sm">
-                          <div className="mb-1 flex items-center justify-center h-12 w-12">
-                            <img src={symptomImage} alt={symptomName} className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        {symptomsList.map((symptom, sIdx) => (
+                          <div key={sIdx} className="flex flex-col items-center justify-center p-2 rounded-xl border-2 min-w-[90px] bg-pink-50 border-pink-200 shadow-sm">
+                            <div className="mb-1 flex items-center justify-center h-12 w-12">
+                              {symptom.image ? (
+                                <img 
+                                  src={symptom.image} 
+                                  alt={symptom.name} 
+                                  className="max-h-full max-w-full object-contain" 
+                                  onError={(e) => { 
+                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                    if ((e.currentTarget as HTMLImageElement).parentElement) {
+                                      (e.currentTarget as HTMLImageElement).parentElement!.innerHTML = '<span class="text-2xl text-gray-400">❓</span>';
+                                    }
+                                  }} 
+                                />
+                              ) : (
+                                <span className="text-2xl text-gray-400">❓</span>
+                              )}
+                            </div>
+                            <span className="text-[8px] font-black uppercase text-center leading-tight text-pink-700 break-words px-1">
+                              PARA {symptom.name.toUpperCase()}
+                            </span>
                           </div>
-                          <span className="text-[8px] font-black uppercase text-center leading-tight text-pink-700">PARA {symptomName.toUpperCase()}</span>
-                        </div>
+                        ))}
                       </div>
                     )}
                   </div>
