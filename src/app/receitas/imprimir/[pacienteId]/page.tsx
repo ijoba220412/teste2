@@ -26,46 +26,47 @@ const SCHEDULE_SLOTS = [
 ];
 
 // ============================================================================
-// COMPONENTES VISUAIS DAS FORMAS FARMACÊUTICAS
+// COMPONENTES VISUAIS DAS FORMAS FARMACÊUTICAS - TAMANHO MAIOR (40px)
 // ============================================================================
 
-// COMPRIMIDO: Círculo com linha diagonal (Ø)
-const ComprimidoIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-    <circle cx={size/2} cy={size/2} r={size/2 - 2} fill="#0f766e" stroke="#0f766e" strokeWidth="1.5"/>
-    <line x1={size/4 + 2} y1={size - size/4 - 2} x2={size - size/4 - 2} y2={size/4 + 2} stroke="white" strokeWidth="2"/>
+// COMPRIMIDO: Círculo com linha diagonal (Ø) - TAMANHO 40px
+const ComprimidoIcon = ({ size = 40 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="print:scale-110">
+    <circle cx={size/2} cy={size/2} r={size/2 - 3} fill="#0f766e" stroke="#0f766e" strokeWidth="2"/>
+    <line x1={size/4 + 3} y1={size - size/4 - 3} x2={size - size/4 - 3} y2={size/4 + 3} stroke="white" strokeWidth="3"/>
   </svg>
 );
 
-// CÁPSULA: Oval dividido
-const CapsulaIcon = ({ size = 28 }: { size?: number }) => (
-  <svg width={size} height={size * 0.57} viewBox={`0 0 ${size} ${size * 0.57}`}>
-    <rect x="0" y="0" width={size} height={size * 0.57} rx={size * 0.285} fill="currentColor" stroke="#0f766e" strokeWidth="1.5" className="text-teal-700"/>
-    <path d={`M ${size/2} 0 L ${size/2} ${size * 0.57}`} stroke="#0f766e" strokeWidth="1" opacity="0.5"/>
+// CÁPSULA: Oval dividido - TAMANHO MAIOR
+const CapsulaIcon = ({ size = 44 }: { size?: number }) => (
+  <svg width={size} height={size * 0.6} viewBox={`0 0 ${size} ${size * 0.6}`} className="print:scale-110">
+    <rect x="0" y="0" width={size} height={size * 0.6} rx={size * 0.3} fill="currentColor" stroke="#0f766e" strokeWidth="2" className="text-teal-700"/>
+    <path d={`M ${size/2} 0 L ${size/2} ${size * 0.6}`} stroke="#0f766e" strokeWidth="1.5" opacity="0.5"/>
   </svg>
 );
 
-// COPO MEDIDOR (Líquido/Xarope)
-const CopoMedidorIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" className="text-teal-700">
-    <path d="M 5 7 L 19 7 L 17 19 L 7 19 Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-    <line x1="8" y1="11" x2="16" y2="11" stroke="currentColor" strokeWidth="1.2"/>
-    <line x1="7.5" y1="15" x2="16.5" y2="15" stroke="currentColor" strokeWidth="1.2"/>
+// COPO MEDIDOR (Líquido/Xarope) - TAMANHO 40px
+const CopoMedidorIcon = ({ size = 40 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" className="text-teal-700 print:scale-110">
+    <path d="M 8 12 L 32 12 L 28 34 L 12 34 Z" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <line x1="13" y1="18" x2="27" y2="18" stroke="currentColor" strokeWidth="2"/>
+    <line x1="12" y1="25" x2="28" y2="25" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="18" cy="21" r="2" fill="currentColor"/>
+    <circle cx="22" cy="21" r="2" fill="currentColor"/>
   </svg>
 );
 
-// GOTA (Gota de líquido)
-const GotaIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" className="text-teal-700">
-    <path d="M12 2 C12 2 6 10 6 14 C6 17.31 8.69 20 12 20 C15.31 20 18 17.31 18 14 C18 10 12 2 12 2 Z" 
-          fill="currentColor" stroke="#0f766e" strokeWidth="1.2"/>
-    {/* Brilho interno da gota */}
-    <ellipse cx="10" cy="13" rx="1.5" ry="2.5" fill="white" opacity="0.6"/>
+// GOTA (Gota de líquido) - TAMANHO 40px
+const GotaIcon = ({ size = 40 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" className="text-teal-700 print:scale-110">
+    <path d="M20 4 C20 4 8 20 8 26 C8 32.63 13.37 38 20 38 C26.63 38 32 32.63 32 26 C32 20 20 4 20 4 Z" 
+          fill="currentColor" stroke="#0f766e" strokeWidth="2"/>
+    <ellipse cx="17" cy="24" rx="3" ry="4" fill="white" opacity="0.7"/>
   </svg>
 );
 
 // Função que retorna o ícone baseado na forma farmacêutica
-const getFormIcon = (form?: string, size: number = 24) => {
+const getFormIcon = (form?: string, size: number = 40) => {
   const formLower = form?.toLowerCase() || '';
   
   if (formLower.includes('capsula') || formLower.includes('cápsula')) {
@@ -85,10 +86,10 @@ const MedicationVisual = ({ dose, form }: { dose: string, form?: string }) => {
   const doseNum = parseInt(dose) || 1;
   
   return (
-    <div className="flex flex-wrap items-center justify-center gap-1.5">
+    <div className="flex flex-wrap items-center justify-center gap-2">
       {Array.from({ length: Math.min(doseNum, 5) }).map((_, i) => (
-        <div key={i} className="flex items-center justify-center">
-          {getFormIcon(form, 24)}
+        <div key={i} className="flex items-center justify-center print:scale-125">
+          {getFormIcon(form, 40)}
         </div>
       ))}
     </div>
@@ -97,7 +98,7 @@ const MedicationVisual = ({ dose, form }: { dose: string, form?: string }) => {
 
 // Componente visual pequeno (para mostrar ao lado do nome do medicamento)
 const MedicationTypeIcon = ({ form }: { form?: string }) => {
-  return getFormIcon(form, 18);
+  return getFormIcon(form, 28);
 };
 
 // ============================================================================
@@ -122,36 +123,67 @@ function formatDate(dateStr: string | any | undefined | null): string {
 function getSymptomImage(symptomName: string | undefined): string | null {
   if (!symptomName) return null;
   const name = symptomName.toLowerCase().trim();
+  
+  // Mapeamento CORRETO dos sintomas - "sono" e "dormir" mapeados corretamente
   const symptomMap: Record<string, string> = {
-    'agitação': 'agitacao.png', 'agitacao': 'agitacao.png',
-    'ansiedade': 'ansiedade.png', 'asma': 'asma.png',
-    'câncer': 'cancermama.png', 'cancer': 'cancermama.png',
-    'circulação': 'circulacao.png', 'circulacao': 'circulacao.png',
+    'agitação': 'agitacao.png',
+    'agitacao': 'agitacao.png',
+    'ansiedade': 'ansiedade.png',
+    'asma': 'asma.png',
+    'câncer': 'cancermama.png',
+    'cancer': 'cancermama.png',
+    'circulação': 'circulacao.png',
+    'circulacao': 'circulacao.png',
     'colesterol': 'colesterol.png',
-    'constipação': 'constipacao.png', 'constipacao': 'constipacao.png',
-    'coração': 'coracao.png', 'coracao': 'coracao.png',
-    'depressão': 'depressao.png', 'depressao': 'depressao.png',
-    'diabetes': 'diabete.png', 'diabete': 'diabete.png',
+    'constipação': 'constipacao.png',
+    'constipacao': 'constipacao.png',
+    'coração': 'coracao.png',
+    'coracao': 'coracao.png',
+    'depressão': 'depressao.png',
+    'depressao': 'depressao.png',
+    'diabetes': 'diabete.png',
+    'diabete': 'diabete.png',
     'diarreia': 'diarreia.png',
-    'dor': 'dor.png', 'dor leve': 'dor.png', 'dor intensa': 'dorintensa.png',
-    'estômago': 'dorestomago.png', 'estomago': 'dorestomago.png',
+    'dor': 'dor.png',
+    'dor leve': 'dor.png',
+    'dor intensa': 'dorintensa.png',
+    'estômago': 'dorestomago.png',
+    'estomago': 'dorestomago.png',
     'fadiga': 'fadiga.png',
-    'falta de ar': 'faltaar.png', 'faltaar': 'faltaar.png',
-    'infecção': 'infeccao.png', 'infeccao': 'infeccao.png',
-    'insônia': 'insonia.png', 'insonia': 'insonia.png',
-    'náusea': 'nausea.png', 'nausea': 'nausea.png', 'vômito': 'vomito.png', 'vomito': 'vomito.png',
-    'osso': 'ossos.png', 'ossos': 'ossos.png',
-    'perda de apetite': 'perdaapetite.png', 'perdaapetite': 'perdaapetite.png',
-    'pressão alta': 'pressaoalta.png', 'pressaoalta': 'pressaoalta.png',
-    'proteger estômago': 'protegerestomago.png', 'protegerestomago': 'protegerestomago.png',
-    'pulmão': 'pulmao.png', 'pulmao': 'pulmao.png', 'tosse': 'tosse.png',
+    'falta de ar': 'faltaar.png',
+    'faltaar': 'faltaar.png',
+    'infecção': 'infeccao.png',
+    'infeccao': 'infeccao.png',
+    'insônia': 'insonia.png',
+    'insonia': 'insonia.png',
     'sono': 'sono.png',
+    'dormir': 'sono.png',
+    'para dormir': 'sono.png',
+    'náusea': 'nausea.png',
+    'nausea': 'nausea.png',
+    'vômito': 'vomito.png',
+    'vomito': 'vomito.png',
+    'osso': 'ossos.png',
+    'ossos': 'ossos.png',
+    'perda de apetite': 'perdaapetite.png',
+    'perdaapetite': 'perdaapetite.png',
+    'pressão alta': 'pressaoalta.png',
+    'pressaoalta': 'pressaoalta.png',
+    'proteger estômago': 'protegerestomago.png',
+    'protegerestomago': 'protegerestomago.png',
+    'pulmão': 'pulmao.png',
+    'pulmao': 'pulmao.png',
+    'tosse': 'tosse.png',
     'trombose': 'trombose.png',
   };
+  
   if (symptomMap[name]) return `/img/n/f/${symptomMap[name]}`;
+  
+  // Busca parcial
   for (const [key, file] of Object.entries(symptomMap)) {
     if (name.includes(key)) return `/img/n/f/${file}`;
   }
+  
   return null;
 }
 
@@ -227,7 +259,10 @@ export default function ImprimirReceita() {
     );
   }
 
-  const allItems = [...(receita.medicamentos_fixos || []), ...(receita.medicamentos_sos || [])];
+  // Separa medicamentos contínuos e SOS
+  const continuousMeds = (receita.medicamentos_fixos || []).filter((m: any) => !m.tipo || m.tipo === 'continuo');
+  const sosMeds = (receita.medicamentos_sos || []).filter((m: any) => m.tipo === 'sos');
+  
   const instNome = instituicao?.nome || receita.nomeInstituicao || 'INSTITUIÇÃO';
   const instEndereco = instituicao ? `${instituicao.rua || ''}, ${instituicao.numero || ''} - ${instituicao.bairro || ''}, ${instituicao.cidade || ''}/${instituicao.uf || ''} - CEP: ${instituicao.cep || ''}` : '';
   const instTelefone = instituicao?.telefone1 || '';
@@ -245,8 +280,8 @@ export default function ImprimirReceita() {
         </button>
       </div>
 
-      {/* FOLHA DA RECEITA */}
-      <div ref={printRef} id="prescription-paper" className="max-w-4xl mx-auto mt-6 bg-white p-8 sm:p-12 shadow-xl print:shadow-none print:mt-0 print:p-0 print:w-full">
+      {/* FOLHA DA RECEITA - OTIMIZADO PARA IMPRESSÃO */}
+      <div ref={printRef} id="prescription-paper" className="max-w-4xl mx-auto mt-6 bg-white p-8 sm:p-12 shadow-xl print:shadow-none print:mt-0 print:p-0 print:w-full print:max-w-none">
         
         {/* ========== HEADER ========== */}
         <div className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-slate-900 pb-6 mb-8 text-center sm:text-left gap-4">
@@ -255,7 +290,7 @@ export default function ImprimirReceita() {
               <Stethoscope className="h-10 w-10" />
             </div>
             <div>
-              <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-900">RECEITA MÉDICA FACILITADA</h1>
+              <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-900 print:text-3xl">RECEITA MÉDICA FACILITADA</h1>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{instNome}</p>
             </div>
           </div>
@@ -318,37 +353,31 @@ export default function ImprimirReceita() {
           </div>
         </div>
 
-        {/* ========== TABELA DE MEDICAMENTOS ========== */}
-        <div className="mb-10 overflow-x-auto">
-          <table className="w-full border-collapse border-b-2 border-slate-900">
-            <thead>
-              <tr className="bg-slate-900 text-white">
-                <th className="border border-slate-900 p-3 text-sm font-black uppercase leading-tight min-w-[220px] text-left">
-                  MEDICAMENTO E MOTIVO
-                </th>
-                {SCHEDULE_SLOTS.map(slot => {
-                  const Icon = slot.icon;
-                  return (
-                    <th key={slot.id} className="border border-slate-900 p-2 text-center min-w-[70px]">
-                      <div className="flex flex-col items-center">
-                        <Icon className="h-6 w-6 mb-1" />
-                        <span className="text-[8px] font-black uppercase leading-tight">{slot.label}</span>
-                        <span className="text-[10px] font-black opacity-50 mt-1">{slot.time}</span>
-                      </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {allItems.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="border border-slate-300 p-8 text-center text-gray-500 uppercase font-semibold">
-                    NENHUM MEDICAMENTO PRESCRITO
-                  </td>
+        {/* ========== TABELA DE MEDICAMENTOS CONTÍNUOS ========== */}
+        {continuousMeds.length > 0 && (
+          <div className="mb-10 overflow-x-auto">
+            <table className="w-full border-collapse border-b-2 border-slate-900">
+              <thead>
+                <tr className="bg-slate-900 text-white">
+                  <th className="border border-slate-900 p-3 text-sm font-black uppercase leading-tight min-w-[220px] text-left">
+                    MEDICAMENTO E MOTIVO
+                  </th>
+                  {SCHEDULE_SLOTS.map(slot => {
+                    const Icon = slot.icon;
+                    return (
+                      <th key={slot.id} className="border border-slate-900 p-2 text-center min-w-[80px]">
+                        <div className="flex flex-col items-center">
+                          <Icon className="h-6 w-6 mb-1" />
+                          <span className="text-[8px] font-black uppercase leading-tight">{slot.label}</span>
+                          <span className="text-[10px] font-black opacity-50 mt-1">{slot.time}</span>
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
-              ) : (
-                allItems.map((med: any, idx) => {
+              </thead>
+              <tbody>
+                {continuousMeds.map((med: any, idx) => {
                   const dose = med.texto_original_da_posologia?.split(' ')[0] || '1';
                   
                   // Processa TODOS os sintomas do medicamento
@@ -375,17 +404,11 @@ export default function ImprimirReceita() {
                           <div>
                             <p className="text-lg font-black text-slate-900 uppercase leading-none mb-1">{med.nome || 'MEDICAMENTO'}</p>
                             <div className="flex items-center gap-2">
-                              {/* ÍCONE ESPECÍFICO POR FORMA FARMACÊUTICA */}
-                              <div className="rounded bg-teal-100 p-1.5 flex items-center justify-center">
+                              <div className="rounded bg-teal-100 p-2 flex items-center justify-center">
                                 <MedicationTypeIcon form={med.apresentacao} />
                               </div>
                               <p className="text-xs font-bold text-slate-600 italic uppercase">{dose} ({med.apresentacao || 'COMPRIMIDO'})</p>
                             </div>
-                            {med.tipo === 'sos' && (
-                              <span className="inline-block mt-2 text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800">
-                                SOS
-                              </span>
-                            )}
                           </div>
                           
                           {/* EXIBIR TODOS OS SINTOMAS */}
@@ -448,15 +471,15 @@ export default function ImprimirReceita() {
                       })}
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* ========== SEÇÃO SOS ========== */}
-        {receita.medicamentos_sos && receita.medicamentos_sos.length > 0 && (
-          <div className="mb-10 p-6 rounded-2xl border-4 border-dashed border-teal-500 bg-teal-50">
+        {sosMeds.length > 0 && (
+          <div className="mb-10 p-6 rounded-2xl border-4 border-dashed border-teal-500 bg-teal-50 print:border-2 print:border-teal-600">
             <div className="flex items-center gap-3 mb-6">
               <div className="rounded-full bg-teal-500 p-3 text-white shadow-md">
                 <History className="h-8 w-8" />
@@ -467,7 +490,7 @@ export default function ImprimirReceita() {
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              {receita.medicamentos_sos.map((sos: any, i: number) => {
+              {sosMeds.map((sos: any, i: number) => {
                 const symptomsList: Array<{ image: string | null; name: string }> = [];
                 
                 if (sos.symptoms && Array.isArray(sos.symptoms) && sos.symptoms.length > 0) {
@@ -577,19 +600,62 @@ export default function ImprimirReceita() {
         </div>
       </div>
 
-      {/* CSS para impressão */}
-      <style jsx>{`
+      {/* CSS para impressão - CORRIGIDO */}
+      <style jsx global>{`
         @media print {
-          .no-print { display: none !important; }
-          body { background-color: white !important; margin: 0; padding: 0; }
-          #prescription-paper { 
-            width: 100% !important; 
-            max-width: none !important; 
+          @page { 
+            margin: 1cm; 
+            size: A4;
+          }
+          
+          body { 
+            background: white !important; 
+            margin: 0; 
+            padding: 0;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          .no-print { 
+            display: none !important; 
+          }
+          
+          #prescription-paper {
+            width: 100% !important;
+            max-width: none !important;
             box-shadow: none !important;
             margin: 0 !important;
-            padding: 1cm !important;
+            padding: 0 !important;
+            background: white !important;
           }
-          @page { margin: 1cm; size: A4; }
+          
+          table {
+            page-break-inside: auto;
+          }
+          
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          
+          .bg-teal-50, .bg-pink-50, .bg-green-50, .bg-red-50, .bg-amber-50 {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          .border-teal-500, .border-pink-200, .border-green-500, .border-red-500 {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          .text-teal-700, .text-pink-700, .text-green-700, .text-red-700 {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
         }
       `}</style>
     </div>
