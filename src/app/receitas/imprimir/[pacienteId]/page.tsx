@@ -5,23 +5,65 @@ import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Receita, Instituicao } from '@/types';
-import { 
-  Printer, ArrowLeft, Sun, Coffee, Utensils, Sunset, Clock, Moon, 
-  AlertCircle, MapPin, Phone, User, Stethoscope, Pill, Capsule
-} from 'lucide-react';
+import { Printer, ArrowLeft, AlertCircle, MapPin, Phone, User, Stethoscope, Pill } from 'lucide-react';
 
 // ============================================================================
-// CONFIGURAÇÃO DOS HORÁRIOS VISUAIS
+// COMPONENTE VISUAL: COMPRIMIDO (Ø) vs CÁPSULA (Oval)
 // ============================================================================
-const TIME_SLOTS = [
-  { label: 'AO ACORDAR', time: '06:00' },
-  { label: 'CAFÉ DA MANHÃ', time: '08:00' },
-  { label: 'ALMOÇO', time: '12:00' },
-  { label: 'À TARDE', time: '15:00' },
-  { label: 'FIM DA TARDE', time: '18:00' },
-  { label: 'JANTAR', time: '20:00' },
-  { label: 'AO DEITAR', time: '22:00' },
-];
+function MedicamentoVisual({ 
+  dose, 
+  apresentacao 
+}: { 
+  dose: string | number; 
+  apresentacao?: string;
+}) {
+  // Verifica se é cápsula ou comprimido baseado no campo 'apresentacao'
+  const isCapsula = apresentacao?.toLowerCase().includes('capsula') || 
+                    apresentacao?.toLowerCase().includes('cápsula');
+  
+  // Converte dose para número (ex: "1", "0.5", "2")
+  const doseNum = parseFloat(String(dose).replace(',', '.'));
+  const parteInteira = Math.floor(doseNum);
+  const temFracao = doseNum % 1 !== 0;
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-1">
+      {/* Renderiza a quantidade inteira */}
+      {Array.from({ length: parteInteira }).map((_, i) => (
+        isCapsula ? (
+          // CÁPSULA: Formato Oval (Lozenge)
+          <svg key={i} width="24" height="14" viewBox="0 0 24 14" className="text-teal-700">
+            <rect x="0" y="0" width="24" height="14" rx="7" fill="currentColor" stroke="#0f766e" strokeWidth="1"/>
+            {/* Detalhe para parecer cápsula de 2 cores */}
+            <path d="M 12 0 L 12 14" stroke="#0f766e" strokeWidth="1" opacity="0.5"/>
+          </svg>
+        ) : (
+          // COMPRIMIDO: Círculo com linha diagonal (Ø) conforme seu esboço
+          <svg key={i} width="20" height="20" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="8" fill="none" stroke="#0f766e" strokeWidth="2"/>
+            <line x1="4" y1="16" x2="16" y2="4" stroke="#0f766e" strokeWidth="2"/>
+          </svg>
+        )
+      ))}
+      
+      {/* Se tiver fração (ex: 0.5 ou 1.5) */}
+      {temFracao && (
+        isCapsula ? (
+          // CÁPSULA FRACIONADA = ERRO (Cápsulas não podem ser partidas)
+          <div className="flex items-center gap-1 text-red-600 text-[10px] font-bold">
+            <AlertCircle size={12} /> INVÁLIDO
+          </div>
+        ) : (
+          // MEIO COMPRIMIDO: Círculo com linha diagonal (representa a parte fracionada)
+          <svg key="half" width="20" height="20" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="8" fill="none" stroke="#0f766e" strokeWidth="2"/>
+            <line x1="4" y1="16" x2="16" y2="4" stroke="#ef4444" strokeWidth="2"/> {/* Linha vermelha para destacar fração */}
+          </svg>
+        )
+      )}
+    </div>
+  );
+}
 
 // ============================================================================
 // FUNÇÕES AUXILIARES
@@ -43,94 +85,53 @@ function formatDate(dateStr: string | any | undefined | null): string {
   return 'NÃO INFORMADA';
 }
 
-function getIconForTime(label: string) {
-  switch(label) {
-    case 'AO ACORDAR': return <Sun size={14} />;
-    case 'CAFÉ DA MANHÃ': return <Coffee size={14} />;
-    case 'ALMOÇO': return <Utensils size={14} />;
-    case 'À TARDE': return <Sun size={14} />;
-    case 'FIM DA TARDE': return <Sunset size={14} />;
-    case 'JANTAR': return <Utensils size={14} />;
-    case 'AO DEITAR': return <Moon size={14} />;
-    default: return <Clock size={14} />;
-  }
-}
-
-function getTimeColumn(timeStr: string): string | null {
-  if (!timeStr) return null;
-  const hour = parseInt(timeStr.split(':')[0]);
-  if (hour >= 6 && hour < 7) return 'AO ACORDAR';
-  if (hour >= 7 && hour < 11) return 'CAFÉ DA MANHÃ';
-  if (hour >= 11 && hour < 14) return 'ALMOÇO';
-  if (hour >= 14 && hour < 17) return 'À TARDE';
-  if (hour >= 17 && hour < 19) return 'FIM DA TARDE';
-  if (hour >= 19 && hour < 21) return 'JANTAR';
-  return 'AO DEITAR';
-}
-
-// Mapeamento de sintomas para imagens
 function getSymptomImage(symptomName: string | undefined): string | null {
   if (!symptomName) return null;
-  
   const name = symptomName.toLowerCase().trim();
-  
-  // Mapeamento direto baseado nos arquivos do GitHub
   const symptomMap: Record<string, string> = {
-    'agitação': 'agitacao.png',
-    'agitacao': 'agitacao.png',
-    'ansiedade': 'ansiedade.png',
-    'asma': 'asma.png',
-    'câncer': 'cancermama.png',
-    'cancer': 'cancermama.png',
-    'circulação': 'circulacao.png',
-    'circulacao': 'circulacao.png',
+    'agitação': 'agitacao.png', 'agitacao': 'agitacao.png',
+    'ansiedade': 'ansiedade.png', 'asma': 'asma.png',
+    'câncer': 'cancermama.png', 'cancer': 'cancermama.png',
+    'circulação': 'circulacao.png', 'circulacao': 'circulacao.png',
     'colesterol': 'colesterol.png',
-    'constipação': 'constipacao.png',
-    'constipacao': 'constipacao.png',
-    'coração': 'coracao.png',
-    'coracao': 'coracao.png',
-    'depressão': 'depressao.png',
-    'depressao': 'depressao.png',
-    'diabetes': 'diabete.png',
-    'diabete': 'diabete.png',
+    'constipação': 'constipacao.png', 'constipacao': 'constipacao.png',
+    'coração': 'coracao.png', 'coracao': 'coracao.png',
+    'depressão': 'depressao.png', 'depressao': 'depressao.png',
+    'diabetes': 'diabete.png', 'diabete': 'diabete.png',
     'diarreia': 'diarreia.png',
-    'dor': 'dor.png',
-    'estômago': 'dorestomago.png',
-    'estomago': 'dorestomago.png',
+    'dor': 'dor.png', 'dor leve': 'dor.png', 'dor intensa': 'dorintensa.png',
+    'estômago': 'dorestomago.png', 'estomago': 'dorestomago.png',
     'fadiga': 'fadiga.png',
-    'falta de ar': 'faltaar.png',
-    'infecção': 'infeccao.png',
-    'infeccao': 'infeccao.png',
-    'insônia': 'insonia.png',
-    'insonia': 'insonia.png',
-    'náusea': 'nausea.png',
-    'nausea': 'nausea.png',
-    'ossos': 'ossos.png',
-    'perda de apetite': 'perdaapetite.png',
-    'pressão alta': 'pressaoalta.png',
-    'proteger estômago': 'protegerestomago.png',
-    'pulmão': 'pulmao.png',
-    'pulmao': 'pulmao.png',
+    'falta de ar': 'faltaar.png', 'faltaar': 'faltaar.png',
+    'infecção': 'infeccao.png', 'infeccao': 'infeccao.png',
+    'insônia': 'insonia.png', 'insonia': 'insonia.png',
+    'náusea': 'nausea.png', 'nausea': 'nausea.png', 'vômito': 'vomito.png', 'vomito': 'vomito.png',
+    'osso': 'ossos.png', 'ossos': 'ossos.png',
+    'perda de apetite': 'perdaapetite.png', 'perdaapetite': 'perdaapetite.png',
+    'pressão alta': 'pressaoalta.png', 'pressaoalta': 'pressaoalta.png',
+    'proteger estômago': 'protegerestomago.png', 'protegerestomago': 'protegerestomago.png',
+    'pulmão': 'pulmao.png', 'pulmao': 'pulmao.png', 'tosse': 'tosse.png',
     'sono': 'sono.png',
-    'tosse': 'tosse.png',
     'trombose': 'trombose.png',
-    'vômito': 'vomito.png',
-    'vomito': 'vomito.png',
   };
-  
-  // Busca exata primeiro
-  if (symptomMap[name]) {
-    return `/img/n/f/${symptomMap[name]}`;
-  }
-  
-  // Busca parcial
+  if (symptomMap[name]) return `/img/n/f/${symptomMap[name]}`;
   for (const [key, file] of Object.entries(symptomMap)) {
-    if (name.includes(key)) {
-      return `/img/n/f/${file}`;
-    }
+    if (name.includes(key)) return `/img/n/f/${file}`;
   }
-  
   return null;
+}
+
+// Extrai os horários únicos ordenados de todos os medicamentos
+function getUniqueTimeSlots(medicamentos: any[]): string[] {
+  const allHours: string[] = [];
+  medicamentos.forEach(med => {
+    if (med.horarios && Array.isArray(med.horarios)) {
+      med.horarios.forEach((h: string) => {
+        if (!allHours.includes(h)) allHours.push(h);
+      });
+    }
+  });
+  return allHours.sort();
 }
 
 // ============================================================================
@@ -154,7 +155,6 @@ export default function ImprimirReceita() {
           if (snap.exists()) {
             const data = { id: snap.id, ...snap.data() } as Receita;
             setReceita(data);
-            
             if (data.instituicaoId) {
               const instSnap = await getDoc(doc(db, 'instituicoes', data.instituicaoId));
               if (instSnap.exists()) {
@@ -178,7 +178,7 @@ export default function ImprimirReceita() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-teal-700 mx-auto mb-4"></div>
           <p className="text-gray-600 font-semibold uppercase">CARREGANDO RECEITA...</p>
@@ -189,314 +189,226 @@ export default function ImprimirReceita() {
 
   if (error || !receita) {
     return (
-      <div className="min-h-screen bg-slate-100 p-8 text-center">
-        <div className="max-w-md mx-auto bg-white rounded-2xl shadow-lg p-8">
+      <div className="min-h-screen bg-white p-8 text-center">
+        <div className="max-w-md mx-auto border-2 border-red-300 rounded-2xl p-8">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <p className="text-lg font-bold text-gray-700 uppercase mb-4">{error || 'RECEITA NÃO ENCONTRADA'}</p>
-          <button 
-            onClick={() => router.push('/dashboard')} 
-            className="bg-teal-700 hover:bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold uppercase transition-colors"
-          >
-            VOLTAR AO INÍCIO
+          <button onClick={() => router.push('/dashboard')} className="bg-teal-700 text-white px-6 py-3 rounded-xl uppercase font-semibold">
+            VOLTAR
           </button>
         </div>
       </div>
     );
   }
 
-  const allItems = [
-    ...(receita.medicamentos_fixos || []),
-    ...(receita.medicamentos_sos || [])
-  ];
+  const allItems = [...(receita.medicamentos_fixos || []), ...(receita.medicamentos_sos || [])];
+  const timeSlots = getUniqueTimeSlots(allItems);
 
-  const instNome = instituicao?.nome || receita.nomeInstituicao || 'INSTITUIÇÃO NÃO INFORMADA';
-  const instDescricao = instituicao?.descricao || '';
-  const instEndereco = instituicao ? (
-    `${instituicao.rua || ''}, ${instituicao.numero || ''}${instituicao.complemento ? ` - ${instituicao.complemento}` : ''} - ${instituicao.bairro || ''}, ${instituicao.cidade || ''}/${instituicao.uf || ''} - CEP: ${instituicao.cep || ''}`
-  ) : 'ENDEREÇO NÃO CADASTRADO';
-  const instTelefone = instituicao?.telefone1 || instituicao?.telefone2 || 'TELEFONE NÃO INFORMADO';
+  const instNome = instituicao?.nome || receita.nomeInstituicao || 'INSTITUIÇÃO';
+  const instEndereco = instituicao ? `${instituicao.rua || ''}, ${instituicao.numero || ''} - ${instituicao.bairro || ''}, ${instituicao.cidade || ''}/${instituicao.uf || ''} - CEP: ${instituicao.cep || ''}` : '';
+  const instTelefone = instituicao?.telefone1 || '';
 
   return (
-    <div className="min-h-screen bg-slate-100 pb-20 print:bg-white print:pb-0">
+    <div className="min-h-screen bg-gray-100 pb-10 print:bg-white print:pb-0">
       
-      <div className="bg-white shadow-sm p-4 flex justify-between items-center print:hidden sticky top-0 z-50">
-        <button 
-          onClick={() => router.push('/dashboard')} 
-          className="flex items-center gap-2 text-slate-600 font-semibold uppercase hover:text-teal-700 transition-colors"
-        >
+      {/* BOTÕES DE AÇÃO */}
+      <div className="bg-white shadow p-4 flex justify-between items-center print:hidden sticky top-0 z-50">
+        <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-gray-700 font-semibold uppercase">
           <ArrowLeft size={20} /> VOLTAR
         </button>
-        <button 
-          onClick={() => window.print()}
-          className="bg-teal-700 hover:bg-teal-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-colors uppercase shadow-lg"
-        >
+        <button onClick={() => window.print()} className="bg-teal-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 uppercase">
           <Printer size={20} /> IMPRIMIR / PDF
         </button>
       </div>
 
-      <div className="max-w-5xl mx-auto mt-6 bg-white shadow-xl rounded-3xl overflow-hidden print:shadow-none print:max-w-none print:rounded-none print:mt-0">
+      {/* FOLHA DA RECEITA */}
+      <div className="max-w-4xl mx-auto mt-6 bg-white shadow-xl rounded-2xl overflow-hidden print:shadow-none print:rounded-none print:mt-0">
         
-        <header className="border-b-4 border-teal-700 p-6 bg-white">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            
-            <div className="flex-1">
-              <h1 className="text-2xl font-black text-teal-800 uppercase tracking-wide">
-                {instNome}
-              </h1>
-              {instDescricao && (
-                <p className="text-sm text-gray-600 uppercase mt-1">{instDescricao}</p>
-              )}
+        {/* ========== CABEÇALHO ========== */}
+        <header className="border-b-4 border-teal-700 p-8">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-black text-teal-800 uppercase tracking-wider">{instNome}</h1>
+            {instituicao?.descricao && <p className="text-sm text-gray-600 uppercase mt-1">{instituicao.descricao}</p>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-sm border-2 border-gray-300 rounded-xl p-4">
+            <div>
+              <p><span className="font-bold uppercase">Paciente:</span> <span className="font-black uppercase">{receita.nomePaciente || 'NÃO INFORMADO'}</span></p>
+              <p><span className="font-bold uppercase">Nascimento:</span> <span className="uppercase">{formatDate(receita.data_nasc)}</span></p>
             </div>
-
-            <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3 border-b border-slate-200 pb-2">
-                <User size={16} className="text-teal-700" />
-                <h2 className="text-xs font-bold text-gray-700 uppercase">Dados do Paciente</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <p className="col-span-2">
-                  <span className="font-bold text-gray-600 uppercase">Nome: </span>
-                  <span className="font-black text-gray-900 uppercase">{receita.nomePaciente || 'NÃO INFORMADO'}</span>
-                </p>
-                <p>
-                  <span className="font-bold text-gray-600 uppercase">Nascimento: </span>
-                  <span className="font-semibold text-gray-800 uppercase">{formatDate(receita.data_nasc)}</span>
-                </p>
-                <p>
-                  <span className="font-bold text-gray-600 uppercase">Prontuário: </span>
-                  <span className="font-semibold text-gray-800 uppercase">{receita.prontuario || 'NÃO INFORMADO'}</span>
-                </p>
-                <p className="col-span-2">
-                  <span className="font-bold text-gray-600 uppercase">Data de Emissão: </span>
-                  <span className="font-semibold text-gray-800 uppercase">
-                    {formatDate(receita.dataEmissao || receita.data_criacao)}
-                  </span>
-                </p>
-              </div>
-
-              <div className="mt-3 pt-2 border-t border-slate-200">
-                <span className="font-bold text-gray-600 uppercase block text-xs mb-1">Alergias:</span>
-                {receita.alergias && receita.alergias.trim() !== '' ? (
-                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                    <AlertCircle size={14} className="text-red-600 flex-shrink-0" />
-                    <span className="font-black text-red-700 uppercase text-sm">{receita.alergias.toUpperCase()}</span>
-                  </div>
-                ) : (
-                  <span className="font-bold text-green-700 uppercase text-sm bg-green-50 px-2 py-1 rounded inline-block">
-                    NEGA ALERGIAS
-                  </span>
-                )}
-              </div>
+            <div>
+              <p><span className="font-bold uppercase">Matrícula:</span> <span className="uppercase">{receita.prontuario || 'NÃO INFORMADO'}</span></p>
+              <p><span className="font-bold uppercase">Gênero:</span> <span className="uppercase">NÃO INFORMADO</span></p>
+            </div>
+            <div>
+              <p><span className="font-bold uppercase">Data da Prescrição:</span> <span className="uppercase">{formatDate(receita.dataEmissao || receita.data_criacao)}</span></p>
+            </div>
+            <div>
+              <span className="font-bold uppercase">Alergias:</span>{' '}
+              {receita.alergias && receita.alergias.trim() !== '' ? (
+                <span className="font-black text-red-700 uppercase bg-red-100 px-2 py-1 rounded">{receita.alergias.toUpperCase()}</span>
+              ) : (
+                <span className="font-bold text-green-700 uppercase bg-green-100 px-2 py-1 rounded">NEGA ALERGIAS</span>
+              )}
             </div>
           </div>
         </header>
 
-        <div className="bg-slate-900 text-white px-4 py-3 flex items-center gap-2 overflow-x-auto print:bg-slate-100 print:text-black print:border-b-2 print:border-black">
-          <span className="font-bold text-xs w-36 shrink-0 uppercase print:w-48 flex items-center gap-2">
-            <Pill size={14} /> Medicamento / Motivo
-          </span>
-          <div className="flex-1 flex justify-between min-w-[600px]">
-            {TIME_SLOTS.map((slot, i) => (
-              <div key={i} className="flex flex-col items-center gap-1 text-[10px] text-center w-14">
-                <div className="opacity-80">{getIconForTime(slot.label)}</div>
-                <span className="font-bold uppercase leading-tight">{slot.label.split(' ')[0]}</span>
-                <span className="opacity-60">{slot.time}</span>
-              </div>
-            ))}
+        {/* ========== TABELA DE MEDICAMENTOS ========== */}
+        <div className="p-8">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border-2 border-gray-800">
+              <thead>
+                <tr className="bg-teal-700 text-white">
+                  <th className="border-2 border-gray-800 p-3 text-left uppercase font-bold text-sm min-w-[200px]">
+                    Medicamento
+                  </th>
+                  {timeSlots.map((hora, i) => (
+                    <th key={i} className="border-2 border-gray-800 p-3 text-center uppercase font-bold text-sm min-w-[80px]">
+                      <div className="flex flex-col items-center gap-1">
+                        <span>{hora}</span>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {allItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={timeSlots.length + 1} className="border-2 border-gray-800 p-8 text-center text-gray-500 uppercase font-semibold">
+                      NENHUM MEDICAMENTO PRESCRITO
+                    </td>
+                  </tr>
+                ) : (
+                  allItems.map((med: any, index) => {
+                    const dose = med.texto_original_da_posologia?.split(' ')[0] || '1';
+                    const doseNum = parseFloat(String(dose).replace(',', '.')) || 1;
+                    
+                    let symptomImage = null;
+                    let symptomName = med.indicacao || '';
+                    if (med.symptoms && Array.isArray(med.symptoms) && med.symptoms.length > 0) {
+                      const s = med.symptoms[0];
+                      symptomName = s.name || symptomName;
+                      if (s.file) symptomImage = `/img/n/f/${s.file}`;
+                      else if (s.id) symptomImage = `/img/n/f/${s.id}.png`;
+                    }
+                    if (!symptomImage) symptomImage = getSymptomImage(symptomName);
+
+                    return (
+                      <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        {/* COLUNA DO MEDICAMENTO */}
+                        <td className="border-2 border-gray-800 p-3">
+                          <div className="flex items-start gap-3">
+                            {/* Imagem do sintoma */}
+                            <div className="w-20 shrink-0 border-2 border-pink-200 rounded-lg p-1 bg-pink-50">
+                              <div className="h-16 flex items-center justify-center">
+                                {symptomImage ? (
+                                  <img 
+                                    src={symptomImage}
+                                    alt={symptomName}
+                                    className="h-full w-auto object-contain"
+                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <span className="text-2xl text-gray-400"></span>
+                                )}
+                              </div>
+                              <p className="text-[9px] font-bold text-pink-700 uppercase text-center leading-tight mt-1">
+                                {symptomName ? `PARA ${symptomName.toUpperCase()}` : ''}
+                              </p>
+                            </div>
+                            
+                            {/* Nome e dose */}
+                            <div className="flex-1">
+                              <p className="font-black text-gray-900 uppercase text-base leading-tight">
+                                {med.nome || 'MEDICAMENTO'}
+                              </p>
+                              <p className="text-sm text-teal-700 font-bold uppercase mt-1">
+                                {dose.toUpperCase()} • {med.apresentacao || 'comprimido'}
+                              </p>
+                              {med.tipo && (
+                                <span className={`inline-block text-[10px] font-bold uppercase px-2 py-0.5 rounded mt-2 ${
+                                  med.tipo === 'sos' ? 'bg-amber-100 text-amber-800' : 'bg-teal-100 text-teal-800'
+                                }`}>
+                                  {med.tipo === 'sos' ? 'SOS' : 'USO CONTÍNUO'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* COLUNAS DE HORÁRIO */}
+                        {timeSlots.map((hora, i) => {
+                          const isActive = med.horarios?.some((h: string) => h === hora);
+                          return (
+                            <td key={i} className="border-2 border-gray-800 p-2 text-center align-middle h-24">
+                              {isActive && (
+                                <MedicamentoVisual 
+                                  dose={doseNum} 
+                                  apresentacao={med.apresentacao} 
+                                />
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
-          {allItems.length === 0 && (
-            <p className="text-center text-gray-500 py-10 font-semibold uppercase">
-              NENHUM MEDICAMENTO PRESCRITO NESTA RECEITA
-            </p>
-          )}
-
-          {allItems.map((med: any, index) => {
-            const dose = med.texto_original_da_posologia?.split(' ')[0] || '1';
-            const apresentacao = med.apresentacao?.toLowerCase() || 'comprimido';
-            
-            // Busca imagem do sintoma
-            let symptomImage: string | null = null;
-            let symptomName: string = med.indicacao || 'CONFORME PRESCRIÇÃO';
-            
-            if (med.symptoms && Array.isArray(med.symptoms) && med.symptoms.length > 0) {
-              const symptom = med.symptoms[0];
-              symptomName = symptom.name || symptomName;
-              if (symptom.file) {
-                symptomImage = `/img/n/f/${symptom.file}`;
-              } else if (symptom.id) {
-                symptomImage = `/img/n/f/${symptom.id}.png`;
-              }
-            }
-            
-            if (!symptomImage) {
-              symptomImage = getSymptomImage(symptomName);
-            }
-
-            // Determina os horários ativos
-            const activeSlots = TIME_SLOTS.map(slot => {
-              const isActive = med.horarios?.some((h: string) => {
-                const hCol = getTimeColumn(h);
-                return hCol === slot.label;
-              });
-              return { ...slot, isActive };
-            }).filter(slot => slot.isActive);
-
-            return (
-              <div key={index} className="relative group">
-                <div className="border-t-2 border-dashed border-slate-200 mb-4 first:mt-0 first:border-0"></div>
-
-                <div className="flex gap-4 md:gap-6">
-                  
-                  <div className="w-32 md:w-44 shrink-0 space-y-2">
-                    <h2 className="text-lg md:text-xl font-black text-slate-900 uppercase leading-tight">
-                      {med.nome || 'MEDICAMENTO'}
-                    </h2>
-                    <div className="flex items-center gap-2 text-slate-600 font-bold text-sm">
-                      {apresentacao.includes('capsula') || apresentacao.includes('cápsula') ? (
-                        <span className="bg-teal-100 text-teal-800 px-2 py-0.5 rounded text-xs">💊</span>
-                      ) : (
-                        <span className="bg-teal-100 text-teal-800 px-2 py-0.5 rounded text-xs">💊</span>
-                      )}
-                      <span>{dose.toUpperCase()}</span>
-                    </div>
-                    
-                    <div className="mt-3 bg-rose-50 border-2 border-rose-200 rounded-xl p-2 text-center shadow-sm">
-                      <div className="h-20 w-full flex items-center justify-center bg-white rounded-lg mb-1 border border-rose-100 overflow-hidden">
-                        {symptomImage ? (
-                          <img 
-                            src={symptomImage}
-                            alt={symptomName}
-                            className="h-16 w-auto object-contain"
-                            onError={(e) => {
-                              console.error('Erro ao carregar imagem:', symptomImage);
-                              e.currentTarget.style.display = 'none';
-                              if (e.currentTarget.parentElement) {
-                                e.currentTarget.parentElement.innerHTML = '<span class="text-3xl text-gray-400">❓</span>';
-                              }
-                            }} 
-                          />
-                        ) : (
-                          <span className="text-3xl text-gray-400">❓</span>
-                        )}
-                      </div>
-                      <p className="font-bold text-rose-700 text-[10px] uppercase leading-tight px-1">
-                        {symptomName.toUpperCase()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 grid grid-cols-7 gap-1 relative">
-                    <div className="absolute inset-0 flex pointer-events-none">
-                      {Array.from({ length: 8 }).map((_, i) => (
-                        <div key={i} className="flex-1 border-l border-slate-100 first:border-0"></div>
-                      ))}
-                    </div>
-
-                    {TIME_SLOTS.map((slot, i) => {
-                      const slotData = activeSlots.find(s => s.label === slot.label);
-                      
-                      return (
-                        <div key={i} className="h-full flex flex-col items-center justify-center z-10 py-1">
-                          {slotData?.isActive ? (
-                            <div className="flex flex-col items-center gap-1">
-                              <div className="bg-teal-600 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold shadow-md print:shadow-none print:bg-teal-700">
-                                {dose}
-                              </div>
-                              <span className="text-[9px] font-bold text-teal-700 uppercase bg-teal-50 px-1 rounded print:bg-transparent">
-                                {slot.time}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <footer className="mt-8 border-t-4 border-teal-700 bg-slate-50 p-6 print:bg-white print:mt-4">
-          
-          <div className="mb-6 pb-4 border-b border-slate-200">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-sm text-gray-700 uppercase">
-              <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-teal-700" />
-                <span className="font-semibold">{instEndereco.toUpperCase()}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone size={16} className="text-teal-700" />
+        {/* ========== RODAPÉ ========== */}
+        <footer className="border-t-4 border-teal-700 p-8 bg-gray-50 print:bg-white">
+          <div className="mb-6 text-sm text-gray-700 uppercase border-b border-gray-300 pb-4">
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-teal-700" />
+              <span className="font-semibold">{instEndereco.toUpperCase()}</span>
+            </div>
+            {instTelefone && (
+              <div className="flex items-center gap-2 mt-1">
+                <Phone size={14} className="text-teal-700" />
                 <span className="font-semibold">{instTelefone}</span>
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+          <div className="grid grid-cols-2 gap-12 mt-8">
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 mb-2 text-gray-600">
-                <Stethoscope size={16} />
+                <Stethoscope size={14} />
                 <span className="text-xs font-bold uppercase">Médico Responsável</span>
               </div>
-              <div className="border-t-2 border-gray-800 pt-3 mx-4">
-                <p className="font-black text-gray-900 uppercase text-sm">
-                  {receita.medico || 'NÃO INFORMADO'}
-                </p>
-                <p className="text-xs text-gray-600 uppercase font-semibold mt-1">
-                  {receita.medico_id || 'CRM/UF'}
-                </p>
+              <div className="border-t-2 border-gray-800 pt-2 mx-4">
+                <p className="font-black text-gray-900 uppercase text-sm">{receita.medico || 'NÃO INFORMADO'}</p>
+                <p className="text-xs text-gray-600 uppercase">{receita.medico_id || 'CRM/UF'}</p>
               </div>
             </div>
-            
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 mb-2 text-gray-600">
-                <Pill size={16} />
+                <Pill size={14} />
                 <span className="text-xs font-bold uppercase">Farmacêutico Responsável</span>
               </div>
-              <div className="border-t-2 border-gray-800 pt-3 mx-4">
-                <p className="font-black text-gray-900 uppercase text-sm">
-                  {receita.farmaceutico || 'NÃO INFORMADO'}
-                </p>
-                <p className="text-xs text-gray-600 uppercase font-semibold mt-1">
-                  {receita.farmaceutico_id || 'CRF/UF'}
-                </p>
+              <div className="border-t-2 border-gray-800 pt-2 mx-4">
+                <p className="font-black text-gray-900 uppercase text-sm">{receita.farmaceutico || 'NÃO INFORMADO'}</p>
+                <p className="text-xs text-gray-600 uppercase">{receita.farmaceutico_id || 'CRF/UF'}</p>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 pt-4 border-t border-slate-200 text-center">
-            <p className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">
-              RECEITA FACILITADA — SEGURANÇA E CLAREZA VISUAL PARA TODOS
-            </p>
-            <p className="text-[10px] text-gray-400 uppercase mt-1">
-              DOCUMENTO GERADO ELETRONICAMENTE EM {new Date().toLocaleDateString('pt-BR')}
-            </p>
-          </div>
+          <p className="text-[10px] text-gray-500 uppercase text-center mt-8 font-semibold">
+            RECEITA FACILITADA • DOCUMENTO GERADO ELETRONICAMENTE EM {new Date().toLocaleDateString('pt-BR')}
+          </p>
         </footer>
-
       </div>
 
       <style jsx>{`
         @media print {
-          body { 
-            background: white !important; 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-          }
-          .print\\:hidden { 
-            display: none !important; 
-          }
-          @page { 
-            size: A4; 
-            margin: 10mm; 
-          }
+          body { background: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .print\\:hidden { display: none !important; }
+          @page { size: A4; margin: 10mm; }
         }
       `}</style>
     </div>
