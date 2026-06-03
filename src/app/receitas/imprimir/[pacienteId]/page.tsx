@@ -5,58 +5,29 @@ import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Receita, Instituicao } from '@/types';
-import { useReactToPrint } from 'react-to-print';
 import { 
   Printer, ArrowLeft, User, Calendar, FileText, Stethoscope,
-  AlertCircle, MapPin, Phone, Pill, Clock, History, Check
+  AlertCircle, MapPin, Phone, Pill, Clock, History, Check,
+  Sun, Coffee, Utensils, Sunset, Moon
 } from 'lucide-react';
 
 // ============================================================================
-// CONSTANTES - HORÁRIOS E SINTOMAS
+// CONSTANTES - HORÁRIOS
 // ============================================================================
 const SCHEDULE_SLOTS = [
-  { id: 'madrugada', label: 'Madrugada', time: '00:00', iconName: 'Moon' },
-  { id: 'acordar', label: 'Ao Acordar', time: '06:00', iconName: 'Sun' },
-  { id: 'cafe', label: 'Café', time: '08:00', iconName: 'Coffee' },
-  { id: 'almoco', label: 'Almoço', time: '12:00', iconName: 'Utensils' },
-  { id: 'tarde', label: 'Tarde', time: '15:00', iconName: 'Sun' },
-  { id: 'fim_tarde', label: 'Fim Tarde', time: '18:00', iconName: 'Sunset' },
-  { id: 'jantar', label: 'Jantar', time: '20:00', iconName: 'Utensils' },
-  { id: 'dormir', label: 'Dormir', time: '22:00', iconName: 'Moon' },
-];
-
-const SYMPTOMS = [
-  { id: 'dor', label: 'Dor', color: 'bg-rose-50 border-rose-200', emoji: '😣' },
-  { id: 'sono', label: 'Sono', color: 'bg-indigo-50 border-indigo-200', emoji: '😴' },
-  { id: 'ansiedade', label: 'Ansiedade', color: 'bg-amber-50 border-amber-200', emoji: '😰' },
-  { id: 'coracao', label: 'Coração', color: 'bg-red-50 border-red-200', emoji: '❤️' },
-  { id: 'estomago', label: 'Estômago', color: 'bg-yellow-50 border-yellow-200', emoji: '🤢' },
-  { id: 'cabeca', label: 'Cabeça', color: 'bg-purple-50 border-purple-200', emoji: '🤕' },
-  { id: 'febre', label: 'Febre', color: 'bg-orange-50 border-orange-200', emoji: '🤒' },
-  { id: 'tosse', label: 'Tosse', color: 'bg-cyan-50 border-cyan-200', emoji: '😷' },
+  { id: 'madrugada', label: 'Madrugada', time: '00:00', icon: Moon },
+  { id: 'acordar', label: 'Ao Acordar', time: '06:00', icon: Sun },
+  { id: 'cafe', label: 'Café', time: '08:00', icon: Coffee },
+  { id: 'almoco', label: 'Almoço', time: '12:00', icon: Utensils },
+  { id: 'tarde', label: 'Tarde', time: '15:00', icon: Sun },
+  { id: 'fim_tarde', label: 'Fim Tarde', time: '18:00', icon: Sunset },
+  { id: 'jantar', label: 'Jantar', time: '20:00', icon: Utensils },
+  { id: 'dormir', label: 'Dormir', time: '22:00', icon: Moon },
 ];
 
 // ============================================================================
-// COMPONENTES AUXILIARES
+// COMPONENTE VISUAL DO MEDICAMENTO (PÍLULA/CÁPSULA)
 // ============================================================================
-
-const IconLoader = ({ name, className }: { name: string, className?: string }) => {
-  const icons: Record<string, any> = {
-    'Moon': Moon,
-    'Sun': (props: any) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>,
-    'Coffee': Coffee,
-    'Utensils': Utensils,
-    'Sunset': (props: any) => <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9a4 4 0 0 1 4 4"/><path d="M12 3v2M12 19v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>,
-    'Pill': Pill,
-    'Clock': Clock,
-    'History': History,
-    'Check': Check,
-  };
-  const LucideIcon = icons[name] || Pill;
-  return <LucideIcon className={className} />;
-};
-
-// Componente visual do medicamento (pílula/cápsula)
 const MedicationVisual = ({ dose, form }: { dose: string, form?: string }) => {
   const isCapsule = form?.toLowerCase().includes('capsula') || form?.toLowerCase().includes('cápsula');
   const doseNum = parseInt(dose) || 1;
@@ -82,6 +53,9 @@ const MedicationVisual = ({ dose, form }: { dose: string, form?: string }) => {
   );
 };
 
+// ============================================================================
+// FUNÇÕES AUXILIARES
+// ============================================================================
 function formatDate(dateStr: string | any | undefined | null): string {
   if (!dateStr) return 'NÃO INFORMADA';
   if (typeof dateStr === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
@@ -141,18 +115,16 @@ export default function ImprimirReceita() {
   const params = useParams();
   const router = useRouter();
   const receitaId = params?.pacienteId as string;
-  const contentRef = useRef<HTMLDivElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   
   const [receita, setReceita] = useState<Receita | null>(null);
   const [instituicao, setInstituicao] = useState<Instituicao | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Configuração de impressão
-  const handlePrint = useReactToPrint({
-    contentRef: contentRef,
-    documentTitle: `receita-${receita?.nomePaciente?.replace(/\s+/g, '-').toLowerCase() || 'receita'}`,
-  });
+  const handlePrint = () => {
+    window.print();
+  };
 
   useEffect(() => {
     (async () => {
@@ -227,7 +199,7 @@ export default function ImprimirReceita() {
       </div>
 
       {/* FOLHA DA RECEITA */}
-      <div ref={contentRef} className="max-w-4xl mx-auto mt-6 bg-white p-8 sm:p-12 shadow-xl print:shadow-none print:mt-0 print:p-0">
+      <div ref={printRef} id="prescription-paper" className="max-w-4xl mx-auto mt-6 bg-white p-8 sm:p-12 shadow-xl print:shadow-none print:mt-0 print:p-0">
         
         {/* ========== HEADER ========== */}
         <div className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-slate-900 pb-6 mb-8 text-center sm:text-left gap-4">
@@ -307,15 +279,18 @@ export default function ImprimirReceita() {
                 <th className="border border-slate-900 p-3 text-sm font-black uppercase leading-tight min-w-[200px] text-left">
                   MEDICAMENTO E MOTIVO
                 </th>
-                {SCHEDULE_SLOTS.map(slot => (
-                  <th key={slot.id} className="border border-slate-900 p-2 text-center min-w-[60px]">
-                    <div className="flex flex-col items-center">
-                      <IconLoader name={slot.iconName} className="h-6 w-6 mb-1" />
-                      <span className="text-[8px] font-black uppercase leading-tight">{slot.label}</span>
-                      <span className="text-[10px] font-black opacity-50 mt-1">{slot.time}</span>
-                    </div>
-                  </th>
-                ))}
+                {SCHEDULE_SLOTS.map(slot => {
+                  const Icon = slot.icon;
+                  return (
+                    <th key={slot.id} className="border border-slate-900 p-2 text-center min-w-[60px]">
+                      <div className="flex flex-col items-center">
+                        <Icon className="h-6 w-6 mb-1" />
+                        <span className="text-[8px] font-black uppercase leading-tight">{slot.label}</span>
+                        <span className="text-[10px] font-black opacity-50 mt-1">{slot.time}</span>
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -347,7 +322,7 @@ export default function ImprimirReceita() {
                             <p className="text-lg font-black text-slate-900 uppercase leading-none mb-1">{med.nome || 'MEDICAMENTO'}</p>
                             <div className="flex items-center gap-2">
                               <div className="rounded bg-teal-100 p-1">
-                                <IconLoader name={med.apresentacao?.toLowerCase().includes('capsula') ? 'Pill' : 'Pill'} className="h-4 w-4 text-teal-700" />
+                                <Pill className="h-4 w-4 text-teal-700" />
                               </div>
                               <p className="text-xs font-bold text-slate-600 italic uppercase">{dose} ({med.apresentacao || 'COMPRIMIDO'})</p>
                             </div>
@@ -360,7 +335,7 @@ export default function ImprimirReceita() {
                           
                           {symptomImage && (
                             <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
-                              <div className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 min-w-[100px] bg-pink-50 border-pink-200 shadow-sm`}>
+                              <div className="flex flex-col items-center justify-center p-2 rounded-xl border-2 min-w-[100px] bg-pink-50 border-pink-200 shadow-sm">
                                 <div className="mb-1 flex items-center justify-center h-16 w-16">
                                   <img src={symptomImage} alt={symptomName} className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                 </div>
@@ -432,7 +407,7 @@ export default function ImprimirReceita() {
                   <div key={i} className="bg-white p-4 rounded-xl shadow-sm border border-teal-200 flex flex-col gap-4">
                     <div className="flex items-start gap-4">
                       <div className="rounded-lg bg-teal-100 p-3 flex-shrink-0">
-                        <IconLoader name="Pill" className="h-6 w-6 text-teal-700" />
+                        <Pill className="h-6 w-6 text-teal-700" />
                       </div>
                       <div className="flex-1">
                         <p className="text-lg font-black text-slate-900 leading-tight uppercase">{sos.nome}</p>
@@ -441,7 +416,7 @@ export default function ImprimirReceita() {
                     </div>
                     {symptomImage && (
                       <div className="flex flex-wrap gap-2 pt-3 border-t border-teal-100">
-                        <div className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 min-w-[90px] bg-pink-50 border-pink-200 shadow-sm`}>
+                        <div className="flex flex-col items-center justify-center p-2 rounded-xl border-2 min-w-[90px] bg-pink-50 border-pink-200 shadow-sm">
                           <div className="mb-1 flex items-center justify-center h-12 w-12">
                             <img src={symptomImage} alt={symptomName} className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                           </div>
@@ -513,7 +488,7 @@ export default function ImprimirReceita() {
             max-width: none !important; 
             box-shadow: none !important;
             margin: 0 !important;
-            padding: 0 !important;
+            padding: 1cm !important;
           }
           @page { margin: 1cm; size: A4; }
         }
