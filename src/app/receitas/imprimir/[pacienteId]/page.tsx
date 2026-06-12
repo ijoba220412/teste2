@@ -17,26 +17,6 @@ import {
  import { db } from '@/lib/firebase';
  import { Receita, Instituicao } from '@/types';
 
-// ============================================================================
-// MOCKS: APAGUE ESTE BLOCO NO SEU PROJETO REAL.
-// (Tipagem corrigida para não causar falhas no 'npm run build' na Vercel)
-// ============================================================================
-const useParams = () => ({ pacienteId: '123' }) as any;
-const useRouter = () => ({ push: (path: string) => console.log(path) }) as any;
-const db = {} as any;
-const doc = (d: any, c: string, id: string) => ({ id }) as any;
-// A tipagem estrita aqui evita o erro "Property 'exists' does not exist on type 'never'"
-const getDoc = async (d: any): Promise<{ exists: () => boolean; data: () => any; id: string }> => { 
-  return { 
-    exists: () => false, 
-    data: () => ({}), 
-    id: '123' 
-  }; 
-};
-type Receita = any;
-type Instituicao = any;
-// ============================================================================
-
 const SCHEDULE_SLOTS = [
   { id: 'madrugada', label: 'Madrugada', time: '00:00', icon: Moon },
   { id: 'acordar', label: 'Ao Acordar', time: '06:00', icon: Sun },
