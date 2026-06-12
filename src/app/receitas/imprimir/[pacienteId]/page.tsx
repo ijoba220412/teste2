@@ -7,35 +7,31 @@ import {
   Sun, Coffee, Utensils, Sunset, Moon
 } from 'lucide-react';
 
-// Interfaces mockadas para substituir as importações locais (@/types)
-interface Receita {
-  id?: string;
-  dataEmissao?: any;
-  data_criacao?: any;
-  nomePaciente?: string;
-  data_nasc?: any;
-  prontuario?: string;
-  alergias?: string;
-  medicamentos_fixos?: any[];
-  medicamentos_sos?: any[];
-  nomeInstituicao?: string;
-  instituicaoId?: string;
-  medico?: string;
-  medico_id?: string;
-  farmaceutico?: string;
-  farmaceutico_id?: string;
-}
+// ============================================================================
+// INSTRUÇÕES PARA O SEU PROJETO LOCAL (NEXT.JS):
+// Remova as duas barras (//) das 4 linhas abaixo para usar as suas rotas e 
+// a sua base de dados (Firebase) reais.
+// ============================================================================
+// import { useParams, useRouter } from 'next/navigation';
+// import { doc, getDoc } from 'firebase/firestore';
+// import { db } from '@/lib/firebase';
+// import { Receita, Instituicao } from '@/types';
 
-interface Instituicao {
-  id?: string;
-  nome?: string;
-  rua?: string;
-  numero?: string;
-  bairro?: string;
-  cidade?: string;
-  uf?: string;
-  telefone1?: string;
-}
+// ============================================================================
+// MOCKS: APAGUE ESTE BLOCO NO SEU PROJETO REAL.
+// (Isto serve apenas para evitar o erro de compilação aqui nesta plataforma, 
+// pois ela não tem acesso à sua pasta local '@/lib/firebase' ou ao Next.js)
+// ============================================================================
+const useParams = () => ({ pacienteId: '123' }) as any;
+const useRouter = () => ({ push: (path: string) => console.log(path) }) as any;
+const db = {} as any;
+const doc = (d: any, c: string, id: string) => ({ id }) as any;
+const getDoc = async (d: any) => { 
+  throw new Error('AMBIENTE DE TESTE: Para ver as suas receitas reais, copie este código para o seu projeto e descomente as importações no topo do ficheiro (Next.js e Firebase).'); 
+};
+type Receita = any;
+type Instituicao = any;
+// ============================================================================
 
 const SCHEDULE_SLOTS = [
   { id: 'madrugada', label: 'Madrugada', time: '00:00', icon: Moon },
@@ -175,8 +171,11 @@ function getSymptomImage(symptomName: string | undefined): string | null {
 
 // ========== COMPONENTE PRINCIPAL ==========
 export default function ImprimirReceita() {
-  // Mock das rotas do Next.js para rodar no Preview
-  const router = { push: (path: string) => console.log('Voltando para:', path) };
+  const params = useParams();
+  const router = useRouter();
+  
+  // Utiliza o parâmetro correto da sua rota para puxar a receita do Firebase
+  const receitaId = params?.pacienteId as string;
   const printRef = useRef<HTMLDivElement>(null);
   
   const [receita, setReceita] = useState<Receita | null>(null);
@@ -184,122 +183,91 @@ export default function ImprimirReceita() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // AÇÃO DIRETA SEM SETTIMEOUT PARA EVITAR BLOQUEIO DO NAVEGADOR
-  const handlePrint = () => {
+  // Função simplificada e direta para acionar a janela de impressão no browser
+  const handlePrint = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
     window.print();
   };
 
   useEffect(() => {
-    // Mock do Firebase para visualização de layout no ambiente de preview
-    const loadMockData = async () => {
+    // Busca os dados reais no Firebase
+    (async () => {
       try {
-        await new Promise(resolve => setTimeout(resolve, 800)); // simula delay de rede
+        if (!receitaId) { 
+          setError('ID DA RECEITA NÃO INFORMADO NA URL'); 
+          setLoading(false); 
+          return; 
+        }
         
-        const mockReceita: Receita = {
-          id: 'REC-9999',
-          dataEmissao: new Date().toISOString(),
-          nomePaciente: 'João da Silva',
-          data_nasc: '15/04/1980',
-          prontuario: '48291-B',
-          alergias: 'Penicilina, Frutos do Mar',
-          nomeInstituicao: 'Clínica Saúde Total',
-          medico: 'Dr. Carlos Mendes',
-          medico_id: '123456-SP',
-          farmaceutico: 'Ana Souza',
-          farmaceutico_id: '654321-SP',
-          medicamentos_fixos: [
-            {
-              nome: 'Losartana Potássica',
-              apresentacao: 'Comprimido',
-              texto_original_da_posologia: '1 comprimido de manhã',
-              indicacao: 'Pressão Alta',
-              horarios: ['08:00']
-            },
-            {
-              nome: 'Metformina',
-              apresentacao: 'Comprimido',
-              texto_original_da_posologia: '1 comprimido após almoço e jantar',
-              indicacao: 'Diabetes',
-              horarios: ['12:00', '20:00']
-            }
-          ],
-          medicamentos_sos: [
-            {
-              nome: 'Dipirona Sódica',
-              apresentacao: 'Gotas',
-              texto_original_da_posologia: '40 gotas de 6 em 6 horas',
-              indicacao: 'Dor Intensa'
-            }
-          ]
-        };
-
-        const mockInstituicao: Instituicao = {
-          id: 'inst-1',
-          nome: 'Clínica Saúde Total',
-          rua: 'Av. Paulista',
-          numero: '1000',
-          bairro: 'Bela Vista',
-          cidade: 'São Paulo',
-          uf: 'SP',
-          telefone1: '(11) 99999-9999'
-        };
-
-        setReceita(mockReceita);
-        setInstituicao(mockInstituicao);
-      } catch {
-        setError('ERRO AO CARREGAR OS DADOS MOCKADOS');
-      } finally {
-        setLoading(false);
+        const snap = await getDoc(doc(db, 'receitas', receitaId));
+        
+        if (!snap.exists()) { 
+          setError('RECEITA NÃO ENCONTRADA NA BASE DE DADOS'); 
+          setLoading(false); 
+          return; 
+        }
+        
+        const data = { id: snap.id, ...snap.data() } as Receita;
+        setReceita(data);
+        
+        if (data.instituicaoId) {
+          const instSnap = await getDoc(doc(db, 'instituicoes', data.instituicaoId));
+          if (instSnap.exists()) {
+            setInstituicao({ id: instSnap.id, ...instSnap.data() } as Instituicao);
+          }
+        }
+      } catch (err: any) { 
+        console.error("Erro ao buscar receita: ", err);
+        setError(err.message || 'OCORREU UM ERRO AO BUSCAR OS DADOS'); 
+      } finally { 
+        setLoading(false); 
       }
-    };
-
-    loadMockData();
-  }, []);
+    })();
+  }, [receitaId]);
 
   if (loading) return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div>
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-teal-700 mx-auto mb-4"></div>
-        <p className="text-gray-600 font-semibold">CARREGANDO...</p>
+        <p className="text-gray-600 font-semibold">CARREGANDO DADOS DA RECEITA...</p>
       </div>
     </div>
   );
 
   if (error || !receita) return (
-    <div className="min-h-screen bg-gray-100 p-8 text-center">
-      <div className="max-w-md mx-auto bg-white border-2 border-red-300 rounded-2xl p-8">
+    <div className="min-h-screen bg-gray-100 p-8 text-center print:hidden">
+      <div className="max-w-md mx-auto bg-white border-2 border-red-300 rounded-2xl p-8 shadow-xl">
         <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-        <p className="text-lg font-bold">{error || 'ERRO'}</p>
-        <button onClick={() => router.push('/dashboard')} className="mt-4 bg-teal-700 text-white px-6 py-3 rounded-xl">VOLTAR</button>
+        <p className="text-lg font-bold">{error || 'ERRO DESCONHECIDO'}</p>
+        <button onClick={() => router.push('/dashboard')} className="mt-6 bg-teal-700 text-white px-6 py-3 rounded-xl hover:bg-teal-800 transition shadow">
+          VOLTAR AO DASHBOARD
+        </button>
       </div>
     </div>
   );
 
   const fixed = receita.medicamentos_fixos || [];
   const sos = receita.medicamentos_sos || [];
-  const instNome = instituicao?.nome || receita.nomeInstituicao || 'INSTITUIÇÃO';
+  const instNome = instituicao?.nome || receita.nomeInstituicao || 'INSTITUIÇÃO NÃO INFORMADA';
   const instEnd = instituicao ? `${instituicao.rua || ''}, ${instituicao.numero || ''} - ${instituicao.bairro || ''}, ${instituicao.cidade || ''}/${instituicao.uf || ''}` : '';
   const instTel = instituicao?.telefone1 || '';
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-10 print:bg-white print:pb-0">
+    <div className="min-h-screen bg-gray-100 pb-10 print:bg-white print:pb-0 print:min-h-0">
       
-      {/* CSS DE IMPRESSÃO - INJETADO DE FORMA SEGURA PARA REACT */}
+      {/* CSS DE IMPRESSÃO - Injetado de forma segura no Next.js para não ser sobrescrito pelo Tailwind */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          /* Define o tamanho da página como A4 e paisagem (landscape) e margens seguras */
           @page { size: A4 landscape; margin: 10mm; }
           
           body, html {
             background-color: white !important;
             margin: 0;
             padding: 0;
-            /* Força os navegadores a imprimirem as cores de fundo */
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
 
-          /* Oculta os botões na hora da impressão */
           .no-print, .print\\:hidden { display: none !important; }
           
           #prescription-paper { 
@@ -311,7 +279,6 @@ export default function ImprimirReceita() {
             border: none !important;
           }
           
-          /* Evita que linhas da tabela ou células sejam cortadas pela metade entre páginas */
           table { page-break-inside: auto; width: 100%; border-collapse: collapse; }
           tr { page-break-inside: avoid; page-break-after: auto; }
           td, th { page-break-inside: avoid; }
@@ -330,7 +297,7 @@ export default function ImprimirReceita() {
         </button>
       </div>
 
-      <div ref={printRef} id="prescription-paper" className="max-w-7xl mx-auto mt-6 bg-white p-8 sm:p-10 shadow-xl">
+      <div ref={printRef} id="prescription-paper" className="max-w-7xl mx-auto mt-6 bg-white p-8 sm:p-10 shadow-xl print:shadow-none">
         {/* CABEÇALHO */}
         <div className="flex flex-col sm:flex-row items-center justify-between border-b-4 border-slate-900 pb-6 mb-8">
           <div className="flex items-center gap-4">
