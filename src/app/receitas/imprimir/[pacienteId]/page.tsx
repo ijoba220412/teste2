@@ -22,7 +22,7 @@ const SCHEDULE_SLOTS = [
   { id: 'dormir', label: 'Dormir', time: '22:00', icon: Moon },
 ];
 
-// ========== FORMAS FARMACÊUTICAS (APENAS PARA TABELA DE HORÁRIOS) ==========
+// ========== FORMAS FARMACÊUTICAS ==========
 const ComprimidoIcon = ({ size = 44 }: { size?: number }) => (
   <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
     <circle cx={size/2} cy={size/2} r={size/2 - 3} fill="#0f766e" stroke="#0f766e" strokeWidth="2"/>
@@ -86,13 +86,11 @@ function formatDate(dateStr: any): string {
   return 'NÃO INFORMADA';
 }
 
-// MAPEAMENTO COMPLETO DE SINTOMAS (incluindo novas imagens e distinção entre náusea e vômito)
 function getSymptomImage(symptomName: string | undefined): string | null {
   if (!symptomName) return null;
   const name = symptomName.toLowerCase().trim();
   
   const map: Record<string, string> = {
-    // Novas imagens
     'ácido úrico': 'acidourico.png',
     'acido urico': 'acidourico.png',
     'convulsão': 'convulsao.png',
@@ -102,8 +100,6 @@ function getSymptomImage(symptomName: string | undefined): string | null {
     'salivacao': 'salivacao.png',
     'tireoide': 'tireoide.png',
     'tratamento hormonal': 'tratamentohormonal.png',
-    
-    // Já existentes
     'agitação': 'agitacao.png',
     'agitacao': 'agitacao.png',
     'anemia': 'anemia.png',
@@ -142,10 +138,7 @@ function getSymptomImage(symptomName: string | undefined): string | null {
     'vômito': 'vomito.png'
   };
   
-  // Correspondência exata
   if (map[name]) return `/img/n/f/${map[name]}`;
-  
-  // Correspondência parcial (palavra-chave)
   for (const [key, file] of Object.entries(map)) {
     if (name.includes(key)) return `/img/n/f/${file}`;
   }
@@ -163,7 +156,10 @@ export default function ImprimirReceita() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePrint = () => setTimeout(() => window.print(), 800);
+  // ✅ CORREÇÃO: Removido setTimeout, usando window.print() diretamente
+  const handlePrint = () => {
+    window.print();
+  };
 
   useEffect(() => {
     (async () => {
@@ -230,7 +226,6 @@ export default function ImprimirReceita() {
                     <p className="text-xl font-black uppercase mb-2">{med.nome}</p>
                     <p className="text-sm font-bold italic uppercase">{dose} {med.apresentacao || 'COMPRIMIDO'}</p>
                   </div>
-                  {/* SINTOMAS GIGANTES - 128x128 */}
                   {symptoms.length > 0 && <div className="flex flex-wrap gap-4 pt-3 border-t mt-3">{symptoms.map((sym,si)=> 
                     <div key={si} className="flex flex-col items-center p-2 rounded-xl border-2 min-w-[140px] bg-pink-50 border-pink-200">
                       <div className="h-32 w-32 flex items-center justify-center mb-2">
@@ -252,7 +247,7 @@ export default function ImprimirReceita() {
           </table>
         </div>
 
-        {/* SEÇÃO SOS - ÍCONES GRANDES (96x96) */}
+        {/* SEÇÃO SOS */}
         {sos.length > 0 && <div className="mb-10 p-6 rounded-2xl border-4 border-dashed border-teal-500 bg-teal-50">
           <div className="flex items-center gap-3 mb-6"><div className="rounded-full bg-teal-500 p-3"><History className="h-10 w-10 text-white" /></div><div><h3 className="text-2xl font-black text-teal-900">MEDICAMENTOS SOS</h3><p className="text-base font-bold text-teal-700">TOMAR SOMENTE SE NECESSÁRIO</p></div></div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -280,17 +275,87 @@ export default function ImprimirReceita() {
         <div className="mt-8 text-center text-xs font-mono text-slate-300 uppercase">RECEITA FACILITADA • {receita.id}</div>
       </div>
 
-      {/* CSS DE IMPRESSÃO CORRIGIDO */}
-      <style>{`
+      {/* ✅ CSS DE IMPRESSÃO COMPLETO E CORRIGIDO */}
+      <style jsx global>{`
         @media print {
-          .no-print { display: none !important; }
-          body { margin: 0; padding: 0; background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-          @page { size: A4 landscape; margin: 0.8cm; }
-          #prescription-paper { width: 100%; margin: 0; padding: 0.3cm; background: white; box-shadow: none; }
-          .border, .border-slate-300, .border-slate-900 { border-color: #000 !important; }
-          svg, img { max-width: 100%; height: auto; }
-          table { page-break-inside: avoid; }
-          tr { page-break-inside: avoid; }
+          /* Configuração da página */
+          @page {
+            size: A4 portrait;
+            margin: 1cm;
+          }
+          
+          /* Reset do body */
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          /* Esconder elementos não imprimíveis */
+          .no-print {
+            display: none !important;
+          }
+          
+          /* Container principal */
+          #prescription-paper {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          
+          /* Preservar cores de fundo */
+          .bg-slate-50, .bg-slate-900, .bg-teal-50, .bg-teal-500, .bg-pink-50, .bg-red-50, .bg-green-50, .bg-white {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          /* Preservar cores de texto */
+          .text-white, .text-teal-700, .text-teal-900, .text-pink-700, .text-red-700, .text-green-700, .text-slate-900 {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          /* Preservar bordas */
+          .border, .border-2, .border-4, .border-dashed {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          
+          /* Controle de quebras de página */
+          table {
+            page-break-inside: auto;
+          }
+          
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          
+          thead {
+            display: table-header-group;
+          }
+          
+          /* SVGs e imagens */
+          svg, img {
+            max-width: 100%;
+            height: auto;
+            page-break-inside: avoid;
+          }
+          
+          /* Evitar quebras no meio de elementos */
+          .rounded-xl, .rounded-2xl {
+            page-break-inside: avoid;
+          }
         }
       `}</style>
     </div>
