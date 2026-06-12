@@ -22,7 +22,7 @@ const SCHEDULE_SLOTS = [
   { id: 'dormir', label: 'Dormir', time: '22:00', icon: Moon },
 ];
 
-// ========== FORMAS FARMACÊUTICAS ==========
+// ========== FORMAS FARMACÊUTICAS (APENAS PARA TABELA DE HORÁRIOS) ==========
 const ComprimidoIcon = ({ size = 44 }: { size?: number }) => (
   <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
     <circle cx={size/2} cy={size/2} r={size/2 - 3} fill="#0f766e" stroke="#0f766e" strokeWidth="2"/>
@@ -86,11 +86,13 @@ function formatDate(dateStr: any): string {
   return 'NÃO INFORMADA';
 }
 
+// MAPEAMENTO COMPLETO DE SINTOMAS (incluindo todas as novas imagens e distinção entre náusea e vômito)
 function getSymptomImage(symptomName: string | undefined): string | null {
   if (!symptomName) return null;
   const name = symptomName.toLowerCase().trim();
   
   const map: Record<string, string> = {
+    // Imagens adicionadas recentemente
     'ácido úrico': 'acidourico.png',
     'acido urico': 'acidourico.png',
     'convulsão': 'convulsao.png',
@@ -100,8 +102,9 @@ function getSymptomImage(symptomName: string | undefined): string | null {
     'salivacao': 'salivacao.png',
     'tireoide': 'tireoide.png',
     'tratamento hormonal': 'tratamentohormonal.png',
+    
+    // Já existentes
     'agitação': 'agitacao.png',
-    'agitacao': 'agitacao.png',
     'anemia': 'anemia.png',
     'ansiedade': 'ansiedade.png',
     'asma': 'asma.png',
@@ -138,7 +141,10 @@ function getSymptomImage(symptomName: string | undefined): string | null {
     'vômito': 'vomito.png'
   };
   
+  // Correspondência exata
   if (map[name]) return `/img/n/f/${map[name]}`;
+  
+  // Correspondência parcial (palavra-chave)
   for (const [key, file] of Object.entries(map)) {
     if (name.includes(key)) return `/img/n/f/${file}`;
   }
@@ -156,10 +162,7 @@ export default function ImprimirReceita() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ CORREÇÃO: Removido setTimeout, usando window.print() diretamente
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => setTimeout(() => window.print(), 800);
 
   useEffect(() => {
     (async () => {
@@ -188,12 +191,12 @@ export default function ImprimirReceita() {
 
   return (
     <div className="min-h-screen bg-gray-100 pb-10">
-      <div className="no-print bg-white shadow p-4 flex justify-between sticky top-0 z-50">
+      <div className="print:hidden bg-white shadow p-4 flex justify-between sticky top-0 z-50">
         <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-gray-700 font-semibold px-4 py-2 rounded-xl"><ArrowLeft className="h-5 w-5" /> VOLTAR</button>
         <button onClick={handlePrint} className="flex items-center gap-2 bg-teal-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg"><Printer className="h-5 w-5" /> IMPRIMIR / PDF</button>
       </div>
 
-      <div ref={printRef} id="prescription-paper" className="max-w-7xl mx-auto mt-6 bg-white p-8 sm:p-10 shadow-xl">
+      <div ref={printRef} id="prescription-paper" className="max-w-7xl mx-auto mt-6 bg-white p-8 sm:p-10 shadow-xl print:shadow-none print:p-4 print:bg-white">
         {/* CABEÇALHO */}
         <div className="flex flex-col sm:flex-row items-center justify-between border-b-4 border-slate-900 pb-6 mb-8">
           <div className="flex items-center gap-4"><div className="rounded-2xl bg-slate-900 p-3"><Stethoscope className="h-10 w-10 text-white" /></div><div><h1 className="text-3xl font-black uppercase">RECEITA MÉDICA FACILITADA</h1><p className="text-sm font-bold text-slate-500 uppercase">{instNome}</p></div></div>
@@ -213,7 +216,7 @@ export default function ImprimirReceita() {
         {/* TABELA DE MEDICAMENTOS FIXOS */}
         <div className="mb-10 overflow-x-auto">
           <table className="w-full border-collapse border-b-4 border-slate-900">
-            <thead><tr className="bg-slate-900 text-white"><th className="border border-slate-900 p-3 text-left min-w-[350px]">MEDICAMENTO E MOTIVO</th>{SCHEDULE_SLOTS.map(slot => { const Icon = slot.icon; return <th key={slot.id} className="border border-slate-900 p-2 text-center min-w-[120px]"><div className="flex flex-col items-center"><Icon className="h-8 w-8 mb-1" /><span className="text-xs font-black">{slot.label}</span><span className="text-xs opacity-50">{slot.time}</span></div></th>; })}</tr></thead>
+            <thead><tr className="bg-slate-900 text-white"><th className="border border-slate-900 p-3 text-left min-w-[350px]">MEDICAMENTO E MOTIVO</th>{SCHEDULE_SLOTS.map(slot => { const Icon = slot.icon; return <th key={slot.id} className="border border-slate-900 p-2 text-center min-w-[120px]"><div className="flex flex-col items-center"><Icon className="h-8 w-8 mb-1" /><span className="text-xs font-black">{slot.label}</span><span className="text-xs opacity-50">{slot.time}</span></div></th>; })}</td></thead>
             <tbody>{fixed.length === 0 ? <tr><td colSpan={9} className="border p-8 text-center">NENHUM MEDICAMENTO DE USO CONTÍNUO</td></tr> : fixed.map((med, idx) => {
               const dose = med.texto_original_da_posologia?.split(' ')[0] || '1';
               let symptoms: {image: string|null, name: string}[] = [];
@@ -226,6 +229,7 @@ export default function ImprimirReceita() {
                     <p className="text-xl font-black uppercase mb-2">{med.nome}</p>
                     <p className="text-sm font-bold italic uppercase">{dose} {med.apresentacao || 'COMPRIMIDO'}</p>
                   </div>
+                  {/* SINTOMAS GIGANTES - 128x128 */}
                   {symptoms.length > 0 && <div className="flex flex-wrap gap-4 pt-3 border-t mt-3">{symptoms.map((sym,si)=> 
                     <div key={si} className="flex flex-col items-center p-2 rounded-xl border-2 min-w-[140px] bg-pink-50 border-pink-200">
                       <div className="h-32 w-32 flex items-center justify-center mb-2">
@@ -247,7 +251,7 @@ export default function ImprimirReceita() {
           </table>
         </div>
 
-        {/* SEÇÃO SOS */}
+        {/* SEÇÃO SOS - ÍCONES GRANDES (96x96) */}
         {sos.length > 0 && <div className="mb-10 p-6 rounded-2xl border-4 border-dashed border-teal-500 bg-teal-50">
           <div className="flex items-center gap-3 mb-6"><div className="rounded-full bg-teal-500 p-3"><History className="h-10 w-10 text-white" /></div><div><h3 className="text-2xl font-black text-teal-900">MEDICAMENTOS SOS</h3><p className="text-base font-bold text-teal-700">TOMAR SOMENTE SE NECESSÁRIO</p></div></div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -275,85 +279,38 @@ export default function ImprimirReceita() {
         <div className="mt-8 text-center text-xs font-mono text-slate-300 uppercase">RECEITA FACILITADA • {receita.id}</div>
       </div>
 
-      {/* ✅ CSS DE IMPRESSÃO COMPLETO E CORRIGIDO */}
-      <style jsx global>{`
+      {/* CSS DE IMPRESSÃO CORRIGIDO E REFORÇADO */}
+      <style>{`
         @media print {
-          /* Configuração da página */
           @page {
-            size: A4 portrait;
+            size: A4 landscape;
             margin: 1cm;
           }
-          
-          /* Reset do body */
           body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
+            margin: 0;
+            padding: 0;
+            background: white;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            color-adjust: exact !important;
           }
-          
-          /* Esconder elementos não imprimíveis */
-          .no-print {
+          .print\\:hidden {
             display: none !important;
           }
-          
-          /* Container principal */
           #prescription-paper {
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            box-shadow: none !important;
-            border: none !important;
+            width: 100%;
+            margin: 0;
+            padding: 0.5cm;
+            background: white;
+            box-shadow: none;
           }
-          
-          /* Preservar cores de fundo */
-          .bg-slate-50, .bg-slate-900, .bg-teal-50, .bg-teal-500, .bg-pink-50, .bg-red-50, .bg-green-50, .bg-white {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color-adjust: exact !important;
+          .border, .border-slate-300, .border-slate-900 {
+            border-color: #000 !important;
           }
-          
-          /* Preservar cores de texto */
-          .text-white, .text-teal-700, .text-teal-900, .text-pink-700, .text-red-700, .text-green-700, .text-slate-900 {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-          
-          /* Preservar bordas */
-          .border, .border-2, .border-4, .border-dashed {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-          
-          /* Controle de quebras de página */
-          table {
-            page-break-inside: auto;
-          }
-          
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-          }
-          
-          thead {
-            display: table-header-group;
-          }
-          
-          /* SVGs e imagens */
           svg, img {
             max-width: 100%;
             height: auto;
-            page-break-inside: avoid;
           }
-          
-          /* Evitar quebras no meio de elementos */
-          .rounded-xl, .rounded-2xl {
+          table, tr, td, th {
             page-break-inside: avoid;
           }
         }
