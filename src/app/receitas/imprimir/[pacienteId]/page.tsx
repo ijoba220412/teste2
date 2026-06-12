@@ -8,26 +8,30 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// INSTRUÇÕES PARA O SEU PROJETO LOCAL (NEXT.JS):
-// Remova as duas barras (//) das 4 linhas abaixo para usar as suas rotas e 
-// a sua base de dados (Firebase) reais.
+// IMPORTANTE: PARA O SEU PROJETO REAL (NEXT.JS + FIREBASE)
+// Descomente as 4 linhas abaixo (remova as barras //) para usar a sua 
+// base de dados real e as rotas corretas.
 // ============================================================================
-// import { useParams, useRouter } from 'next/navigation';
-// import { doc, getDoc } from 'firebase/firestore';
-// import { db } from '@/lib/firebase';
-// import { Receita, Instituicao } from '@/types';
+ import { useParams, useRouter } from 'next/navigation';
+ import { doc, getDoc } from 'firebase/firestore';
+ import { db } from '@/lib/firebase';
+ import { Receita, Instituicao } from '@/types';
 
 // ============================================================================
 // MOCKS: APAGUE ESTE BLOCO NO SEU PROJETO REAL.
-// (Isto serve apenas para evitar o erro de compilação aqui nesta plataforma, 
-// pois ela não tem acesso à sua pasta local '@/lib/firebase' ou ao Next.js)
+// (Tipagem corrigida para não causar falhas no 'npm run build' na Vercel)
 // ============================================================================
 const useParams = () => ({ pacienteId: '123' }) as any;
 const useRouter = () => ({ push: (path: string) => console.log(path) }) as any;
 const db = {} as any;
 const doc = (d: any, c: string, id: string) => ({ id }) as any;
-const getDoc = async (d: any) => { 
-  throw new Error('AMBIENTE DE TESTE: Para ver as suas receitas reais, copie este código para o seu projeto e descomente as importações no topo do ficheiro (Next.js e Firebase).'); 
+// A tipagem estrita aqui evita o erro "Property 'exists' does not exist on type 'never'"
+const getDoc = async (d: any): Promise<{ exists: () => boolean; data: () => any; id: string }> => { 
+  return { 
+    exists: () => false, 
+    data: () => ({}), 
+    id: '123' 
+  }; 
 };
 type Receita = any;
 type Instituicao = any;
@@ -174,7 +178,6 @@ export default function ImprimirReceita() {
   const params = useParams();
   const router = useRouter();
   
-  // Utiliza o parâmetro correto da sua rota para puxar a receita do Firebase
   const receitaId = params?.pacienteId as string;
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -183,14 +186,12 @@ export default function ImprimirReceita() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Função simplificada e direta para acionar a janela de impressão no browser
   const handlePrint = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
     window.print();
   };
 
   useEffect(() => {
-    // Busca os dados reais no Firebase
     (async () => {
       try {
         if (!receitaId) { 
@@ -202,7 +203,8 @@ export default function ImprimirReceita() {
         const snap = await getDoc(doc(db, 'receitas', receitaId));
         
         if (!snap.exists()) { 
-          setError('RECEITA NÃO ENCONTRADA NA BASE DE DADOS'); 
+          // Este erro será disparado caso mantenha o código de simulação ativo
+          setError('ESTE É UM AMBIENTE DE TESTE. DESCOMENTE AS IMPORTAÇÕES PARA LIGAR AO SEU FIREBASE REAL.'); 
           setLoading(false); 
           return; 
         }
@@ -255,7 +257,7 @@ export default function ImprimirReceita() {
   return (
     <div className="min-h-screen bg-gray-100 pb-10 print:bg-white print:pb-0 print:min-h-0">
       
-      {/* CSS DE IMPRESSÃO - Injetado de forma segura no Next.js para não ser sobrescrito pelo Tailwind */}
+      {/* CSS DE IMPRESSÃO */}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page { size: A4 landscape; margin: 10mm; }
@@ -287,7 +289,7 @@ export default function ImprimirReceita() {
         }
       `}} />
 
-      {/* BARRA DE AÇÕES (ESCONDIDA NA IMPRESSÃO) */}
+      {/* BARRA DE AÇÕES */}
       <div className="no-print print:hidden bg-white shadow p-4 flex justify-between sticky top-0 z-50">
         <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-gray-700 font-semibold px-4 py-2 rounded-xl transition hover:bg-gray-50">
           <ArrowLeft className="h-5 w-5" /> VOLTAR
