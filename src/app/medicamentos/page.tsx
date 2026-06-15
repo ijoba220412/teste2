@@ -1,96 +1,103 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Medicamento } from '@/types';
-import { SYMPTOMS_DATA } from '@/lib/symptoms';
-import { Plus, Trash2, Pill, Edit, Activity } from 'lucide-react';
+import { IMedicamentoPadrao, ApresentacaoMedicamento } from '@/lib/types';
+import SearchBar from '@/components/ui/SearchBar';
+import { PencilIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 
-// Tipo auxiliar para o array de sintomas
-interface SymptomType {
-  id: string;
-  name: string;
-  file: string;
-}
-
-export default function MedicamentosPage() {
-  const [meds, setMeds] = useState<Array<Medicamento & { id: string }>>([]);
+export default function MedicamentosList() {
+  const [medicamentos, setMedicamentos] = useState<IMedicamentoPadrao[]>([]);
+  const [filteredMedicamentos, setFilteredMedicamentos] = useState<IMedicamentoPadrao[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({
-    nomeComercial: '',
-    principioAtivo: '',
-    apresentacao: 'comprimido',
-    fabricante: '',
-    dosagem: '',
-    indicacao: '',
-    symptomIds: [] as string[]
-  });
+  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  const [nome, setNome] = useState('');
+  const [apresentacao, setApresentacao] = useState<ApresentacaoMedicamento>(ApresentacaoMedicamento.COMPRIMIDO);
+  const [indicacao, setIndicacao] = useState('');
 
   useEffect(() => {
-    const unsub = onSnapshot(
-      collection(db, 'medicamentos_padrao'),
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Array<Medicamento & { id: string }>;
-        setMeds(data);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Erro ao carregar medicamentos:', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsub();
+    fetchMedicamentos();
   }, []);
 
-  const toggleSymptom = (symptomId: string) => {
-    setForm(prev => ({
-      ...prev,
-      symptomIds: prev.symptomIds.includes(symptomId)
-        ? prev.symptomIds.filter(id => id !== symptomId)
-        : [...prev.symptomIds, symptomId]
-    }));
+  const fetchMedicamentos = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'medicamentos_padrao'));
+      const data = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as IMedicamentoPadrao));
+      data.sort((a, b) => a.nome.localeCompare(b.nome));
+      setMedicamentos(data);
+      setFilteredMedicamentos(data);
+    } catch (error) {
+      console.error('Erro ao buscar medicamentos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (term: string) => {
+    if (!term) {
+      setFilteredMedicamentos(medicamentos);
+      return;
+    }
+    const filtered = medicamentos.filter(m => 
+      m.nome.includes(term) || 
+      m.indicacao?.includes(term)
+    );
+    setFilteredMedicamentos(filtered);
+  };
+
+  const handleOpenForm = (med?: IMedicamentoPadrao) => {
+    if (med) {
+      setEditingId(med.id || null);
+      setNome(med.nome);
+      setApresentacao(med.apresentacao);
+      setIndicacao(med.indicacao || '');
+    } else {
+      setEditingId(null);
+      setNome('');
+      setApresentacao(ApresentacaoMedicamento.COMPRIMIDO);
+      setIndicacao('');
+    }
+    setShowForm(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!nome.trim()) {
+      alert('NOME DO MEDICAMENTO É OBRIGATÓRIO');
+      return;
+    }
 
     try {
+      const medicamentoData = {
+        nome: nome.toUpperCase().trim(),
+        apresentacao,
+        indicacao: indicacao.toUpperCase().trim(),
+        criado_em: Timestamp.now(),
+      };
+
       if (editingId) {
-        await updateDoc(doc(db, 'medicamentos_padrao', editingId), form);
+        await updateDoc(doc(db, 'medicamentos_padrao', editingId), medicamentoData);
       } else {
-        await addDoc(collection(db, 'medicamentos_padrao'), form);
+        await addDoc(collection(db, 'medicamentos_padrao'), medicamentoData);
       }
 
-      resetForm();
+      setShowForm(false);
+      fetchMedicamentos();
     } catch (error) {
       console.error('Erro ao salvar medicamento:', error);
       alert('ERRO AO SALVAR MEDICAMENTO');
     }
   };
 
-  const handleEdit = (med: Medicamento & { id: string }) => {
-    setForm({
-      nomeComercial: (med.nomeComercial || med.nome || '').toUpperCase(),
-      principioAtivo: (med.principioAtivo || '').toUpperCase(),
-      apresentacao: med.apresentacao || 'comprimido',
-      fabricante: (med.fabricante || '').toUpperCase(),
-      dosagem: (med.dosagem || '').toUpperCase(),
-      indicacao: (med.indicacao || '').toUpperCase(),
-      symptomIds: (med.symptomIds as string[]) || [],
-    });
-    setEditingId(med.id);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm('CONFIRMA EXCLUSÃO DESTE MEDICAMENTO?')) {
+  const handleDelete = async (id: string, nome: string) => {
+    if (confirm(`TEM CERTEZA QUE DESEJA EXCLUIR "${nome}"?`)) {
       try {
         await deleteDoc(doc(db, 'medicamentos_padrao', id));
+        fetchMedicamentos();
       } catch (error) {
         console.error('Erro ao excluir:', error);
         alert('ERRO AO EXCLUIR MEDICAMENTO');
@@ -98,253 +105,126 @@ export default function MedicamentosPage() {
     }
   };
 
-  const resetForm = () => {
-    setForm({
-      nomeComercial: '',
-      principioAtivo: '',
-      apresentacao: 'comprimido',
-      fabricante: '',
-      dosagem: '',
-      indicacao: '',
-      symptomIds: []
-    });
-    setEditingId(null);
-  };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Activity className="w-12 h-12 text-teal-700 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-semibold uppercase">CARREGANDO MEDICAMENTOS...</p>
-        </div>
-      </div>
-    );
+    return <div className="p-8 text-center">CARREGANDO MEDICAMENTOS...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* HEADER */}
-        <div className="flex items-center gap-3">
-          <Pill className="w-8 h-8 text-teal-700" />
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 uppercase">
-            CADASTRO DE MEDICAMENTOS
-          </h1>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <h1 className="text-2xl font-bold text-gray-800 uppercase">Gerenciar Medicamentos</h1>
+        <div className="flex gap-4 w-full md:w-auto">
+          <SearchBar onSearch={handleSearch} placeholder="FILTRAR MEDICAMENTOS..." />
+          <button
+            onClick={() => handleOpenForm()}
+            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-bold uppercase shadow-sm"
+          >
+            <PlusIcon className="w-5 h-5 mr-2" />
+            Novo
+          </button>
         </div>
+      </div>
 
-        {/* FORMULÁRIO */}
-        <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold uppercase mb-4">
+              {editingId ? 'EDITAR MEDICAMENTO' : 'NOVO MEDICAMENTO'}
+            </h2>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">NOME COMERCIAL *</label>
+                <label className="block text-sm font-bold uppercase mb-1">Nome do Medicamento *</label>
                 <input
+                  type="text"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value.toUpperCase())}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="EX: PARACETAMOL"
                   required
-                  placeholder="EX: DIPIRONA"
-                  value={form.nomeComercial}
-                  onChange={e => setForm({ ...form, nomeComercial: e.target.value.toUpperCase() })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">PRINCÍPIO ATIVO</label>
-                <input
-                  placeholder="EX: METAMIZOL SÓDICO"
-                  value={form.principioAtivo}
-                  onChange={e => setForm({ ...form, principioAtivo: e.target.value.toUpperCase() })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">APRESENTAÇÃO *</label>
+                <label className="block text-sm font-bold uppercase mb-1">Apresentação *</label>
                 <select
-                  value={form.apresentacao}
-                  onChange={e => setForm({ ...form, apresentacao: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+                  value={apresentacao}
+                  onChange={(e) => setApresentacao(e.target.value as ApresentacaoMedicamento)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
                 >
-                  <option value="comprimido">COMPRIMIDO</option>
-                  <option value="capsula">CÁPSULA</option>
-                  <option value="gota">GOTA</option>
-                  <option value="liquido">LÍQUIDO (COPO MEDIDOR)</option>
-                  <option value="xarope">XAROPE</option>
-                  <option value="spray">SPRAY</option>
-                  <option value="pomada">POMADA</option>
+                  {Object.values(ApresentacaoMedicamento).map((val) => (
+                    <option key={val} value={val}>{val}</option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">FABRICANTE</label>
-                <input
-                  placeholder="EX: NEO QUÍMICA"
-                  value={form.fabricante}
-                  onChange={e => setForm({ ...form, fabricante: e.target.value.toUpperCase() })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">DOSAGEM (EX: 500MG)</label>
-                <input
-                  placeholder="EX: 500MG"
-                  value={form.dosagem}
-                  onChange={e => setForm({ ...form, dosagem: e.target.value.toUpperCase() })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+                <label className="block text-sm font-bold uppercase mb-1">Indicação (Pra Que Serve?)</label>
+                <textarea
+                  value={indicacao}
+                  onChange={(e) => setIndicacao(e.target.value.toUpperCase())}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="EX: DOR DE CABEÇA, FEBRE"
+                  rows={3}
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">PARA QUE SERVE (INDICAÇÃO)</label>
-                <input
-                  placeholder="EX: ANALGÉSICO E ANTITÉRMICO"
-                  value={form.indicacao}
-                  onChange={e => setForm({ ...form, indicacao: e.target.value.toUpperCase() })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-4 uppercase">
-                SINTOMAS QUE ESTE MEDICAMENTO TRATA:
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {SYMPTOMS_DATA.map((symptom: SymptomType) => (
-                  <button
-                    key={symptom.id}
-                    type="button"
-                    onClick={() => toggleSymptom(symptom.id)}
-                    className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
-                      form.symptomIds.includes(symptom.id)
-                        ? 'border-teal-600 bg-teal-50 shadow-md'
-                        : 'border-gray-200 hover:border-teal-300 bg-white'
-                    }`}
-                  >
-                    <img
-                      src={`/img/n/f/${symptom.file}`}
-                      alt={symptom.name}
-                      className="w-12 h-12 object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                    <span className="text-xs font-semibold text-center uppercase">{symptom.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="flex items-center gap-2 bg-teal-700 hover:bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold uppercase transition-colors shadow-lg"
-              >
-                {editingId ? <Edit className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-                {editingId ? 'ATUALIZAR MEDICAMENTO' : 'CADASTRAR MEDICAMENTO'}
-              </button>
-              
-              {editingId && (
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-bold uppercase"
+                >
+                  SALVAR
+                </button>
                 <button
                   type="button"
-                  onClick={resetForm}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors uppercase font-semibold"
+                  onClick={() => setShowForm(false)}
+                  className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 font-bold uppercase"
                 >
                   CANCELAR
                 </button>
-              )}
-            </div>
-          </form>
+              </div>
+            </form>
+          </div>
         </div>
+      )}
 
-        {/* LISTA DE MEDICAMENTOS */}
-        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-          {meds.length === 0 ? (
-            <div className="text-center py-16">
-              <Pill className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg font-semibold uppercase">
-                NENHUM MEDICAMENTO CADASTRADO
-              </p>
-            </div>
+      <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
+        <ul className="divide-y divide-gray-200">
+          {filteredMedicamentos.length === 0 ? (
+            <li className="p-8 text-center text-gray-500 uppercase">
+              {medicamentos.length === 0 
+                ? 'Nenhum medicamento cadastrado. Clique em "NOVO" para adicionar.'
+                : 'Nenhum medicamento encontrado com este filtro.'}
+            </li>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {meds.map((m: Medicamento & { id: string }) => (
-                <div key={m.id} className="flex items-center justify-between p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Pill className="w-5 h-5 text-teal-700" />
-                      <p className="font-bold text-gray-900 text-lg uppercase">
-                        {m.nomeComercial || m.nome} {m.dosagem && `- ${m.dosagem}`}
-                      </p>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2 text-sm text-gray-600 uppercase">
-                      <span className="font-semibold">{m.apresentacao}</span>
-                      {m.principioAtivo && (
-                        <>
-                          <span>•</span>
-                          <span>{m.principioAtivo}</span>
-                        </>
-                      )}
-                      {m.fabricante && (
-                        <>
-                          <span>•</span>
-                          <span>{m.fabricante}</span>
-                        </>
-                      )}
-                    </div>
-                    
-                    {m.indicacao && (
-                      <p className="text-sm text-gray-500 mt-2 uppercase">
-                        {m.indicacao}
-                      </p>
-                    )}
-                    
-                    {/* CORREÇÃO DO ERRO DE TIPO AQUI ABAIXO */}
-                    {m.symptomIds && (m.symptomIds as string[]).length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {(m.symptomIds as string[]).map((sid: string) => {
-                          const sym = SYMPTOMS_DATA.find((s: SymptomType) => s.id === sid);
-                          return sym ? (
-                            <span
-                              key={sid}
-                              className="text-xs bg-teal-100 text-teal-800 px-3 py-1 rounded-full font-semibold uppercase"
-                            >
-                              {sym.name}
-                            </span>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => handleEdit(m)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="EDITAR"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(m.id || '')}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="EXCLUIR"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
+            filteredMedicamentos.map((med) => (
+              <li key={med.id} className="px-6 py-4 hover:bg-gray-50 transition-colors flex justify-between items-center group">
+                <div>
+                  <p className="text-lg font-bold text-gray-900 uppercase">{med.nome}</p>
+                  <p className="text-sm text-gray-500 uppercase">
+                    {med.apresentacao} • {med.indicacao || 'Sem indicação cadastrada'}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <div className="flex gap-3 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleOpenForm(med)}
+                    className="text-indigo-600 hover:text-indigo-900 p-2 bg-indigo-50 rounded-full"
+                  >
+                    <PencilIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(med.id!, med.nome)}
+                    className="text-red-600 hover:text-red-900 p-2 bg-red-50 rounded-full"
+                  >
+                    <TrashIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </li>
+            ))
           )}
-        </div>
-
+        </ul>
       </div>
     </div>
   );
