@@ -1,9 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
 
-// ============================================================================
-// ENUMS E CONSTANTES
-// ============================================================================
-
 export enum Genero {
   MASCULINO = 'MASCULINO',
   FEMININO = 'FEMININO',
@@ -34,14 +30,10 @@ export enum TipoInstituicao {
   OUTRO = 'OUTRO'
 }
 
-// ============================================================================
-// PACIENTES
-// ============================================================================
-
 export interface IPaciente {
   id?: string;
-  nome: string;
   prontuario: string;
+  nome: string;
   nascimento?: string;
   genero?: Genero;
   etnia?: string;
@@ -50,24 +42,17 @@ export interface IPaciente {
   observacoes?: string;
   instituicaoId?: string;
   historico?: string;
-  // Endereço
   cep?: string;
   rua?: string;
   numero?: string;
   bairro?: string;
   cidade?: string;
   uf?: string;
-  // Contato
   contato?: string;
   email?: string;
   nome_responsavel?: string;
   telefone_responsavel?: string;
-  [key: string]: any;
 }
-
-// ============================================================================
-// PROFISSIONAIS
-// ============================================================================
 
 export interface IProfissional {
   id?: string;
@@ -81,61 +66,40 @@ export interface IProfissional {
   orgao?: string;
   numeroRegistro?: string;
   uf?: string;
-  [key: string]: any;
 }
-
-// ============================================================================
-// INSTITUIÇÕES
-// ============================================================================
 
 export interface IInstituicao {
   id?: string;
   nome: string;
   descricao?: string;
-  tipo: TipoInstituicao | string;
+  tipo?: TipoInstituicao;
   telefone1?: string;
   telefone2?: string;
-  // Endereço completo
   cep?: string;
   rua?: string;
   numero?: string;
-  complemento?: string;
   bairro?: string;
   cidade?: string;
   uf?: string;
-  pais?: string;
-  email?: string;
-  website?: string;
-  [key: string]: any;
 }
-
-// ============================================================================
-// MEDICAMENTOS PADRÃO
-// ============================================================================
 
 export interface IMedicamentoPadrao {
   id?: string;
   nome: string;
-  apresentacao: ApresentacaoMedicamento | string;
+  apresentacao: ApresentacaoMedicamento;
   indicacao?: string;
   criado_em?: Timestamp;
-  [key: string]: any;
 }
-
-// ============================================================================
-// RECEITAS E PRESCRIÇÕES
-// ============================================================================
 
 export interface ItemPrescrito {
   medicamentoId: string;
   medicamentoNome: string;
-  apresentacao: ApresentacaoMedicamento | string;
+  apresentacao: ApresentacaoMedicamento;
   dose: string;
   via: string;
-  aprazamento: string; // ex: "8h/8h", "06:00, 14:00, 22:00", "SOS"
+  aprazamento: string;
   indicacaoIcone?: string;
   indicacaoTexto?: string;
-  [key: string]: any;
 }
 
 export interface IReceita {
@@ -151,16 +115,4 @@ export interface IReceita {
   dataUltimaEdicao: Timestamp;
   itensPrescritos: ItemPrescrito[];
   orientacoesGerais?: string;
-  [key: string]: any;
 }
-
-// ============================================================================
-// ALIASES PARA COMPATIBILIDADE
-// ============================================================================
-
-export type Paciente = IPaciente;
-export type Profissional = IProfissional;
-export type Instituicao = IInstituicao;
-export type MedicamentoPadrao = IMedicamentoPadrao;
-export type Receita = IReceita;
-export type Medicamento = IMedicamentoPadrao;

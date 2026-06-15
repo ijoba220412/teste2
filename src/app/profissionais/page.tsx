@@ -1,71 +1,84 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  deleteDoc, 
-  doc, 
-  updateDoc,
-  query,
-  orderBy
-} from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Profissional } from '@/types';
-import { Plus, Trash2, Stethoscope, Edit, Activity } from 'lucide-react';
+import { IProfissional, CargoProfissional } from '@/lib/types';
+import SearchBar from '@/components/ui/SearchBar';
+import { PencilIcon, TrashIcon, PlusIcon, UserGroupIcon } from 'lucide-react';
 
 export default function ProfissionaisPage() {
-  const [profissionais, setProfissionais] = useState<Array<Profissional & { id: string }>>([]);
+  const [profissionais, setProfissionais] = useState<IProfissional[]>([]);
+  const [filtered, setFiltered] = useState<IProfissional[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  
   const [form, setForm] = useState({
     nome: '',
-    cargo: 'MÉDICO(A)',
+    cargo: CargoProfissional.MEDICO,
     cargoOutro: '',
-    numeroRegistro: '',
-    orgao: 'CRM',
-    uf: '',
-    email: '',
     especialidade: '',
     local: '',
-    observacoes: ''
+    observacoes: '',
+    email: '',
+    orgao: '',
+    numeroRegistro: '',
+    uf: 'RJ'
   });
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'profissionais'), orderBy('nome', 'asc'));
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Array<Profissional & { id: string }>;
-        setProfissionais(data);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Erro ao carregar profissionais:', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsub();
+    fetchProfissionais();
   }, []);
+
+  const fetchProfissionais = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'profissionais'));
+      const data = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as IProfissional));
+      data.sort((a, b) => a.nome.localeCompare(b.nome));
+      setProfissionais(data);
+      setFiltered(data);
+    } catch (error) {
+      console.error("Erro ao buscar profissionais:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (term: string) => {
+    if (!term) {
+      setFiltered(profissionais);
+      return;
+    }
+    const filteredData = profissionais.filter(p => 
+      p.nome.includes(term) || 
+      (p.especialidade && p.especialidade.includes(term)) ||
+      (p.numeroRegistro && p.numeroRegistro.includes(term))
+    );
+    setFiltered(filteredData);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (form.cargo === CargoProfissional.FARMACEUTICO) {
+      if (!form.numeroRegistro || !form.orgao || !form.uf) {
+        alert("PARA FARMACÊUTICOS, NÚMERO DE REGISTRO, ÓRGÃO E UF SÃO OBRIGATÓRIOS");
+        return;
+      }
+    }
 
     try {
       const dataToSave = {
         ...form,
         nome: form.nome.toUpperCase(),
-        cargo: form.cargo.toUpperCase(),
-        cargoOutro: form.cargoOutro.toUpperCase(),
-        orgao: form.orgao.toUpperCase(),
+        cargoOutro: form.cargoOutro?.toUpperCase(),
+        especialidade: form.especialidade?.toUpperCase(),
+        local: form.local?.toUpperCase(),
+        observacoes: form.observacoes?.toUpperCase(),
+        orgao: form.orgao?.toUpperCase(),
         uf: form.uf.toUpperCase(),
-        especialidade: form.especialidade.toUpperCase(),
-        local: form.local.toUpperCase(),
+        updated_at: Timestamp.now()
       };
 
       if (editingId) {
@@ -75,38 +88,37 @@ export default function ProfissionaisPage() {
       }
 
       resetForm();
+      fetchProfissionais();
     } catch (error) {
-      console.error('Erro ao salvar profissional:', error);
-      alert('ERRO AO SALVAR PROFISSIONAL');
+      console.error("Erro ao salvar profissional:", error);
+      alert("ERRO AO SALVAR PROFISSIONAL");
     }
   };
 
-  const handleEdit = (prof: Profissional & { id: string }) => {
+  const handleEdit = (prof: IProfissional & { id: string }) => {
     setForm({
       nome: prof.nome || '',
-      cargo: prof.cargo || 'MÉDICO(A)',
+      cargo: prof.cargo || CargoProfissional.MEDICO,
       cargoOutro: prof.cargoOutro || '',
-      numeroRegistro: prof.numeroRegistro || '',
-      orgao: prof.orgao || 'CRM',
-      uf: prof.uf || '',
-      email: prof.email || '',
       especialidade: prof.especialidade || '',
       local: prof.local || '',
       observacoes: prof.observacoes || '',
+      email: prof.email || '',
+      orgao: prof.orgao || '',
+      numeroRegistro: prof.numeroRegistro || '',
+      uf: prof.uf || 'RJ'
     });
-    
-    // 🛡️ CORREÇÃO DO ERRO DE TIPO AQUI:
-    // Garante que se prof.id for undefined, o estado recebe null
-    setEditingId(prof.id ?? null);
+    setEditingId(prof.id);
+    setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('CONFIRMA EXCLUSÃO DESTE PROFISSIONAL?')) {
+  const handleDelete = async (id: string, nome: string) => {
+    if (confirm(`TEM CERTEZA QUE DESEJA EXCLUIR O PROFISSIONAL ${nome}?`)) {
       try {
         await deleteDoc(doc(db, 'profissionais', id));
+        fetchProfissionais();
       } catch (error) {
-        console.error('Erro ao excluir:', error);
-        alert('ERRO AO EXCLUIR PROFISSIONAL');
+        alert("ERRO AO EXCLUIR PROFISSIONAL");
       }
     }
   };
@@ -114,252 +126,200 @@ export default function ProfissionaisPage() {
   const resetForm = () => {
     setForm({
       nome: '',
-      cargo: 'MÉDICO(A)',
+      cargo: CargoProfissional.MEDICO,
       cargoOutro: '',
-      numeroRegistro: '',
-      orgao: 'CRM',
-      uf: '',
-      email: '',
       especialidade: '',
       local: '',
-      observacoes: ''
+      observacoes: '',
+      email: '',
+      orgao: '',
+      numeroRegistro: '',
+      uf: 'RJ'
     });
     setEditingId(null);
+    setShowForm(false);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Activity className="w-12 h-12 text-teal-700 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-semibold uppercase">CARREGANDO PROFISSIONAIS...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 text-center">CARREGANDO DADOS...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* HEADER */}
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-3">
-          <Stethoscope className="w-8 h-8 text-teal-700" />
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 uppercase">
-            CADASTRO DE PROFISSIONAIS
-          </h1>
+          <UserGroupIcon className="w-8 h-8 text-teal-700" />
+          <h1 className="text-2xl font-bold text-gray-800 uppercase">GERENCIAR PROFISSIONAIS</h1>
         </div>
+        <div className="flex gap-4 w-full md:w-auto">
+          <SearchBar onSearch={handleSearch} placeholder="FILTRAR PROFISSIONAIS..." />
+          <button 
+            onClick={() => setShowForm(!showForm)} 
+            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-bold uppercase shadow-sm"
+          >
+            <PlusIcon className="w-5 h-5 mr-2" />
+            {showForm ? 'CANCELAR' : 'NOVO'}
+          </button>
+        </div>
+      </div>
 
-        {/* FORMULÁRIO */}
-        <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
+      {showForm && (
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6 border border-gray-200">
+          <h2 className="text-xl font-bold mb-4 uppercase">{editingId ? 'EDITAR PROFISSIONAL' : 'NOVO PROFISSIONAL'}</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">NOME COMPLETO *</label>
+              <div>
+                <label className="block text-sm font-bold mb-1 uppercase">NOME *</label>
                 <input
-                  required
-                  placeholder="EX: DR. RICARDO LUCAS DE SOUZA RODRIGUES"
+                  type="text"
                   value={form.nome}
-                  onChange={e => setForm({ ...form, nome: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+                  onChange={(e) => setForm({...form, nome: e.target.value.toUpperCase()})}
+                  className="w-full p-2 border border-gray-300 rounded uppercase font-semibold"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">CARGO *</label>
+                <label className="block text-sm font-bold mb-1 uppercase">CARGO *</label>
                 <select
-                  required
                   value={form.cargo}
-                  onChange={e => setForm({ ...form, cargo: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+                  onChange={(e) => setForm({...form, cargo: e.target.value as CargoProfissional})}
+                  className="w-full p-2 border border-gray-300 rounded uppercase font-semibold"
+                  required
                 >
-                  <option value="MÉDICO(A)">MÉDICO(A)</option>
-                  <option value="FARMACÊUTICO(A)">FARMACÊUTICO(A)</option>
-                  <option value="ENFERMEIRO(A)">ENFERMEIRO(A)</option>
-                  <option value="OUTRO">OUTRO</option>
+                  {Object.values(CargoProfissional).map((val) => (
+                    <option key={val} value={val}>{val}</option>
+                  ))}
                 </select>
               </div>
 
-              {form.cargo === 'OUTRO' && (
+              {form.cargo === CargoProfissional.OUTRO && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">ESPECIFIQUE O CARGO *</label>
+                  <label className="block text-sm font-bold mb-1 uppercase">ESPECIFICAR OUTRO CARGO</label>
                   <input
-                    required
-                    placeholder="EX: NUTRICIONISTA"
+                    type="text"
                     value={form.cargoOutro}
-                    onChange={e => setForm({ ...form, cargoOutro: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+                    onChange={(e) => setForm({...form, cargoOutro: e.target.value.toUpperCase()})}
+                    className="w-full p-2 border border-gray-300 rounded uppercase font-semibold"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">NÚMERO DE REGISTRO *</label>
+                <label className="block text-sm font-bold mb-1 uppercase">ESPECIALIDADE</label>
                 <input
-                  required
-                  placeholder="EX: 123456"
-                  value={form.numeroRegistro}
-                  onChange={e => setForm({ ...form, numeroRegistro: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">ÓRGÃO *</label>
-                <select
-                  required
-                  value={form.orgao}
-                  onChange={e => setForm({ ...form, orgao: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
-                >
-                  <option value="CRM">CRM</option>
-                  <option value="CRF">CRF</option>
-                  <option value="COREN">COREN</option>
-                  <option value="CRN">CRN</option>
-                  <option value="CREFITO">CREFITO</option>
-                  <option value="OUTRO">OUTRO</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">UF *</label>
-                <input
-                  required
-                  maxLength={2}
-                  placeholder="EX: RJ"
-                  value={form.uf}
-                  onChange={e => setForm({ ...form, uf: e.target.value.toUpperCase() })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">ESPECIALIDADE</label>
-                <input
-                  placeholder="EX: ONCOLOGIA"
+                  type="text"
                   value={form.especialidade}
-                  onChange={e => setForm({ ...form, especialidade: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+                  onChange={(e) => setForm({...form, especialidade: e.target.value.toUpperCase()})}
+                  className="w-full p-2 border border-gray-300 rounded uppercase font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">EMAIL</label>
+                <label className="block text-sm font-bold mb-1 uppercase">LOCAL DE ATUAÇÃO</label>
+                <input
+                  type="text"
+                  value={form.local}
+                  onChange={(e) => setForm({...form, local: e.target.value.toUpperCase()})}
+                  className="w-full p-2 border border-gray-300 rounded uppercase font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 uppercase">E-MAIL</label>
                 <input
                   type="email"
-                  placeholder="EX: CONTATO@HOSPITAL.COM"
                   value={form.email}
-                  onChange={e => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+                  onChange={(e) => setForm({...form, email: e.target.value})}
+                  className="w-full p-2 border border-gray-300 rounded uppercase font-semibold"
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">LOCAL DE ATENDIMENTO</label>
+              <div>
+                <label className="block text-sm font-bold mb-1 uppercase">ÓRGÃO DE CLASSE</label>
                 <input
-                  placeholder="EX: HOSPITAL DAS CLÍNICAS"
-                  value={form.local}
-                  onChange={e => setForm({ ...form, local: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+                  type="text"
+                  value={form.orgao}
+                  onChange={(e) => setForm({...form, orgao: e.target.value.toUpperCase()})}
+                  className={`w-full p-2 border border-gray-300 rounded uppercase font-semibold ${form.cargo === CargoProfissional.FARMACEUTICO ? 'border-red-500 bg-red-50' : ''}`}
+                  placeholder={form.cargo === CargoProfissional.FARMACEUTICO ? 'OBRIGATÓRIO PARA FARMACÊUTICOS' : 'EX: CRM, COREN'}
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2 uppercase">OBSERVAÇÕES</label>
-                <textarea
-                  rows={3}
-                  placeholder="INFORMAÇÕES ADICIONAIS"
-                  value={form.observacoes}
-                  onChange={e => setForm({ ...form, observacoes: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase"
+              <div>
+                <label className="block text-sm font-bold mb-1 uppercase">NÚMERO DE REGISTRO</label>
+                <input
+                  type="text"
+                  value={form.numeroRegistro}
+                  onChange={(e) => setForm({...form, numeroRegistro: e.target.value.toUpperCase()})}
+                  className={`w-full p-2 border border-gray-300 rounded uppercase font-semibold ${form.cargo === CargoProfissional.FARMACEUTICO ? 'border-red-500 bg-red-50' : ''}`}
+                  placeholder={form.cargo === CargoProfissional.FARMACEUTICO ? 'OBRIGATÓRIO PARA FARMACÊUTICOS' : 'EX: 123456'}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 uppercase">UF</label>
+                <input
+                  type="text"
+                  value={form.uf}
+                  onChange={(e) => setForm({...form, uf: e.target.value.toUpperCase().slice(0, 2)})}
+                  className="w-full p-2 border border-gray-300 rounded uppercase font-semibold"
+                  maxLength={2}
+                  placeholder="RJ"
                 />
               </div>
             </div>
 
-            {/* BOTÕES */}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="flex items-center gap-2 bg-teal-700 hover:bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold uppercase transition-colors shadow-lg"
-              >
-                {editingId ? <Edit className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-                {editingId ? 'ATUALIZAR PROFISSIONAL' : 'CADASTRAR PROFISSIONAL'}
+            <div>
+              <label className="block text-sm font-bold mb-1 uppercase">OBSERVAÇÕES</label>
+              <textarea
+                value={form.observacoes}
+                onChange={(e) => setForm({...form, observacoes: e.target.value.toUpperCase()})}
+                className="w-full p-2 border border-gray-300 rounded uppercase font-semibold"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded font-bold uppercase hover:bg-green-700">
+                {editingId ? 'ATUALIZAR' : 'SALVAR'}
               </button>
-              
-              {editingId && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors uppercase font-semibold"
-                >
-                  CANCELAR
-                </button>
-              )}
+              <button type="button" onClick={resetForm} className="px-4 py-2 bg-gray-500 text-white rounded font-bold uppercase hover:bg-gray-600">
+                CANCELAR
+              </button>
             </div>
           </form>
         </div>
+      )}
 
-        {/* LISTA DE PROFISSIONAIS */}
-        <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-          {profissionais.length === 0 ? (
-            <div className="text-center py-16">
-              <Stethoscope className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg font-semibold uppercase">
-                NENHUM PROFISSIONAL CADASTRADO
-              </p>
-            </div>
+      <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
+        <ul className="divide-y divide-gray-200">
+          {filtered.length === 0 ? (
+            <li className="p-8 text-center text-gray-500 uppercase">NENHUM PROFISSIONAL ENCONTRADO.</li>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {profissionais.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Stethoscope className="w-5 h-5 text-teal-700" />
-                      <p className="font-bold text-gray-900 text-lg uppercase">{p.nome}</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600 uppercase">
-                      <p>
-                        <span className="font-semibold">CARGO:</span> {p.cargo === 'OUTRO' ? p.cargoOutro : p.cargo}
-                      </p>
-                      <p>
-                        <span className="font-semibold">REGISTRO:</span> {p.orgao}/{p.uf} {p.numeroRegistro}
-                      </p>
-                      {p.especialidade && <p><span className="font-semibold">ESPECIALIDADE:</span> {p.especialidade}</p>}
-                      {p.local && <p><span className="font-semibold">LOCAL:</span> {p.local}</p>}
-                      {p.email && <p><span className="font-semibold">EMAIL:</span> {p.email}</p>}
-                    </div>
-                    
-                    {p.observacoes && (
-                      <p className="text-xs text-gray-500 mt-2 uppercase italic">
-                        OBS: {p.observacoes}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => handleEdit(p)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="EDITAR"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(p.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="EXCLUIR"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
+            filtered.map((prof) => (
+              <li key={prof.id} className="px-6 py-4 hover:bg-gray-50 transition-colors flex justify-between items-center group">
+                <div>
+                  <p className="text-lg font-bold text-gray-900 uppercase">{prof.nome}</p>
+                  <p className="text-sm text-gray-500 uppercase">
+                    {prof.cargo} {prof.especialidade && `• ${prof.especialidade}`}
+                  </p>
+                  {(prof.numeroRegistro || prof.orgao) && (
+                    <p className="text-xs text-gray-400 uppercase mt-1">
+                      {prof.orgao && `${prof.orgao}: `}{prof.numeroRegistro} {prof.uf && `- ${prof.uf}`}
+                    </p>
+                  )}
                 </div>
-              ))}
-            </div>
+                <div className="flex gap-3 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => handleEdit(prof)} className="text-indigo-600 hover:text-indigo-900 p-2 bg-indigo-50 rounded-full">
+                    <PencilIcon className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => handleDelete(prof.id!, prof.nome)} className="text-red-600 hover:text-red-900 p-2 bg-red-50 rounded-full">
+                    <TrashIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </li>
+            ))
           )}
-        </div>
-
+        </ul>
       </div>
     </div>
   );
