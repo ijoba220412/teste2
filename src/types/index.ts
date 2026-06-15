@@ -1,198 +1,166 @@
 import { Timestamp } from 'firebase/firestore';
 
 // ============================================================================
-// INTERFACES REAIS DO FIRESTORE (Baseadas nas suas imagens)
+// ENUMS E CONSTANTES
 // ============================================================================
 
-export interface Instituicao {
+export enum Genero {
+  MASCULINO = 'MASCULINO',
+  FEMININO = 'FEMININO',
+  OUTRO = 'OUTRO'
+}
+
+export enum ApresentacaoMedicamento {
+  CAPSULA = 'CÁPSULA',
+  COMPRIMIDO = 'COMPRIMIDO',
+  GOTAS = 'GOTAS',
+  LIQUIDO = 'LÍQUIDO',
+  INJETAVEL = 'INJETÁVEL',
+  POMADA = 'POMADA'
+}
+
+export enum CargoProfissional {
+  MEDICO = 'MÉDICO(A)',
+  ENFERMEIRO = 'ENFERMEIRO(A)',
+  FARMACEUTICO = 'FARMACÊUTICO(A)',
+  OUTRO = 'OUTRO'
+}
+
+export enum TipoInstituicao {
+  HOSPITAL = 'HOSPITAL',
+  CLINICA = 'CLÍNICA',
+  UBS = 'UBS',
+  UPA = 'UPA',
+  OUTRO = 'OUTRO'
+}
+
+// ============================================================================
+// PACIENTES
+// ============================================================================
+
+export interface IPaciente {
   id?: string;
   nome: string;
-  descricao: string;
-  rua: string;
-  numero: string;
-  complemento?: string;
-  bairro: string;
-  cidade: string;
-  uf: string;
-  cep: string;
-  pais?: string;
-  telefone1: string;
+  prontuario: string;
+  nascimento?: string;
+  genero?: Genero;
+  etnia?: string;
+  temAlergia: boolean;
+  alergiasDescricao?: string;
+  observacoes?: string;
+  instituicaoId?: string;
+  historico?: string;
+  // Endereço
+  cep?: string;
+  rua?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+  // Contato
+  contato?: string;
+  email?: string;
+  nome_responsavel?: string;
+  telefone_responsavel?: string;
+  [key: string]: any;
+}
+
+// ============================================================================
+// PROFISSIONAIS
+// ============================================================================
+
+export interface IProfissional {
+  id?: string;
+  nome: string;
+  cargo: CargoProfissional;
+  cargoOutro?: string;
+  especialidade?: string;
+  local?: string;
+  observacoes?: string;
+  email?: string;
+  orgao?: string;
+  numeroRegistro?: string;
+  uf?: string;
+  [key: string]: any;
+}
+
+// ============================================================================
+// INSTITUIÇÕES
+// ============================================================================
+
+export interface IInstituicao {
+  id?: string;
+  nome: string;
+  descricao?: string;
+  tipo: TipoInstituicao | string;
+  telefone1?: string;
   telefone2?: string;
-  tipo: string;
+  // Endereço completo
+  cep?: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
+  pais?: string;
   email?: string;
   website?: string;
   [key: string]: any;
 }
 
-export interface Profissional {
+// ============================================================================
+// MEDICAMENTOS PADRÃO
+// ============================================================================
+
+export interface IMedicamentoPadrao {
   id?: string;
   nome: string;
-  cargo: string;
-  cargoOutro?: string;
-  numeroRegistro: string;
-  orgao: string;
-  uf: string;
-  email?: string;
-  especialidade?: string;
-  local?: string;
-  observacoes?: string;
-  [key: string]: any;
-}
-
-export interface ItemMedicamento {
-  nomeMedicamento: string;
-  principio?: string;
-  dose: string;
-  horarios: string[];
-  intervalo: number;
-  indicacao: string;
-  medicamentold?: string;
-  horaInicio?: string;
-  [key: string]: any;
-}
-
-export interface MedicamentoPosologia {
-  texto_original_da_posologia: string;
-  nome: string;
-  indicacao: string;
-  [key: string]: any;
-}
-
-export interface Receita {
-  id?: string;
-  nomePaciente: string;
-  prontuario: string;
-  pacienteId?: string;
-  profissionalId?: string;
-  medico?: string;
-  medico_id?: string;
-  farmaceutico?: string;
-  farmaceutico_id?: string;
-  instituicaoId?: string;
-  nomeInstituicao?: string;
-  dataEmissao?: string;
-  data_nasc?: string;
-  data_consulta?: string;
-  data_criacao?: string | Timestamp;
-  data_atualizacao?: string | Timestamp;
-  criado_em?: string | Timestamp;
-  setor_id?: string;
-  itens: ItemMedicamento[];
-  medicamentos_fixos: MedicamentoPosologia[];
-  medicamentos_sos: MedicamentoPosologia[];
-  [key: string]: any;
-}
-
-export interface Paciente {
-  id?: string;
-  nome: string;
-  dataNascimento: string;
-  matricula: string;
-  alergias?: string;
-  telefone?: string;
-  endereco?: string;
-  historico?: string;
-  instituicaoId?: string;
-  profissionalId?: string;
-  [key: string]: any;
-}
-
-export interface Medicamento {
-  id?: string;
-  nomeComercial?: string;
-  principioAtivo?: string;
-  apresentacao?: string;
-  fabricante?: string;
-  nome?: string;
-  dosagem?: string;
+  apresentacao: ApresentacaoMedicamento | string;
   indicacao?: string;
-  symptoms?: Array<{ name: string; file: string }>;
-  mealIcons?: Array<{ icon: string; label: string; hour: string }>;
+  criado_em?: Timestamp;
   [key: string]: any;
 }
 
 // ============================================================================
-// TIPO CRIADO PARA O GOOGLE LABS (Symptom)
-// ============================================================================
-export interface Symptom {
-  id: string;
-  name: string;
-  file: string;
-}
-
-// ============================================================================
-// INTERFACE DO DASHBOARD (Prescription)
+// RECEITAS E PRESCRIÇÕES
 // ============================================================================
 
-export interface MedicationItem {
-  nome: string;
-  dosagem: string;
-  doseQuantity: number;
-  apresentacao: 'comprimido' | 'capsula' | 'mL' | 'liquido' | string;
-  mealIcons?: Array<{ icon: string; label: string; hour: string }>;
-  symptoms?: Array<{ name: string; file: string }>;
-  instrucoes?: string;
-  horarioInicio?: string;
-  frequencia?: string;
-  tipo?: string;
+export interface ItemPrescrito {
+  medicamentoId: string;
+  medicamentoNome: string;
+  apresentacao: ApresentacaoMedicamento | string;
+  dose: string;
+  via: string;
+  aprazamento: string; // ex: "8h/8h", "06:00, 14:00, 22:00", "SOS"
+  indicacaoIcone?: string;
+  indicacaoTexto?: string;
   [key: string]: any;
 }
 
-export interface Prescription {
+export interface IReceita {
   id?: string;
-  patientName: string;
-  patientRegistration?: string;
-  patientBirthDate?: string;
-  patientAllergies?: string;
-  doctorName?: string;
-  doctorCrm?: string;
-  pharmacistName?: string;
-  pharmacistCrf?: string;
-  institutionName?: string;
-  institutionAddress?: string;
-  institutionPhone?: string;
-  medications: MedicationItem[];
-  createdAt?: any; 
-  updatedAt?: any;
-  prescriptionDate?: string;
-  tipo?: 'continuo' | 'sos' | 'ambos' | string;
-  observacoes?: string;
-  status?: 'ativa' | 'cancelada' | 'concluida' | string;
+  pacienteId: string;
+  pacienteNome: string;
+  prontuario: string;
+  profissionalId: string;
+  profissionalNome: string;
+  instituicaoId?: string;
+  instituicaoNome?: string;
+  dataCriacao: Timestamp;
+  dataUltimaEdicao: Timestamp;
+  itensPrescritos: ItemPrescrito[];
+  orientacoesGerais?: string;
   [key: string]: any;
 }
 
 // ============================================================================
-// UTILITÁRIOS
+// ALIASES PARA COMPATIBILIDADE
 // ============================================================================
 
-export type AcaoTomada = 'tomado' | 'nao_tomado' | 'pulado';
-
-export interface Tomada {
-  id?: string;
-  prescricaoId: string;
-  horario: string;
-  status: AcaoTomada;
-  registradoEm: string;
-  [key: string]: any;
-}
-
-// ============================================================================
-// 🛡️ BLINDAGEM DE ALIASES (INGLÊS -> PORTUGUÊS)
-// ============================================================================
-
-export type Medication = Medicamento;
-export type Medicine = Medicamento;
-export type Institution = Instituicao;
-export type Professional = Profissional;
-export type HealthcareProfessional = Profissional;
-export type Patient = Paciente;
-export type PrescriptionItem = ItemMedicamento;
-export type Posology = MedicamentoPosologia;
-export type IntakeAction = AcaoTomada;
-export type ScheduledIntake = Tomada;
-
-export interface MealIcon {
-  icon: string;
-  label: string;
-  hour: string;
-}
+export type Paciente = IPaciente;
+export type Profissional = IProfissional;
+export type Instituicao = IInstituicao;
+export type MedicamentoPadrao = IMedicamentoPadrao;
+export type Receita = IReceita;
+export type Medicamento = IMedicamentoPadrao;
